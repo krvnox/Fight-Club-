@@ -1,0 +1,538 @@
+-- ================================================================
+-- AUTO PARRY INTELIGENTE + LEITOR DE COMBOS + ESTRATÉGIA ADAPTATIVA
+-- ================================================================
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local packetRemote = ReplicatedStorage:WaitForChild("Packet"):WaitForChild("RemoteEvent")
+
+-- ==================== BUFFERS ====================
+local PUNCH_BUFFER = buffer.fromstring("\005\003lmb\000\000\000\000\000")
+local HIGHKICK_BUFFER = buffer.fromstring("\005\bkeypress\v\001q\000\000\000\000")
+local LOWKICK_BUFFER = buffer.fromstring("\005\bkeypress\v\001e\000\000\000\000")
+local PARRY_PRESS = buffer.fromstring("\005\bkeypress\v\001g\000\000\000\000")   -- Tecla do parry (ajuste!)
+local PARRY_RELEASE = buffer.fromstring("\005\bkeyrelease\v\001g\000\000\000\000")
+
+-- ==================== CONFIGURAÇÕES ====================
+local DETECTION_RANGE = 60
+local ATTACK_RANGE = 8
+local KITER_ATTACK_RANGE = 15
+local FACING_THRESHOLD = 0.5
+
+-- Parry aprimorado
+local PARRY_COOLDOWN = 0.07
+local PARRY_PRESS_DURATION = 0.04
+local PARRY_RECOVERY = 0.06
+local THREAT_SPEED = 12
+local THREAT_DISTANCE = 9
+local PREDICTIVE_PARRY_DISTANCE = 5
+local ANIMATION_ATTACK_START = 0.1   -- tempo após início da animação para reagir
+
+-- Aproximação
+local FOLLOW_SPEED = 24
+local FOLLOW_RANGE = KITER_ATTACK_RANGE
+
+-- Cooldowns de ataque
+local PUNCH_COOLDOWN_NORMAL = 0.02
+local PUNCH_COOLDOWN_FAST = 0.008
+local KICK_COOLDOWN_NORMAL = 0.015
+local KICK_COOLDOWN_FAST = 0.006
+local SHARINGAN_DURATION = 5
+
+-- ==================== ESTATÍSTICAS DO INIMIGO ====================
+local enemyStats = {
+    attackCount = 0,
+    attackWindow = 0,
+    retreatCount = 0,
+    retreatWindow = 0,
+    totalDistance = 0,
+    distanceSamples = 0,
+    lastAttackTime = 0,
+    lastPosition = nil,
+    playStyle = "unknown",
+    maxHealth = 100,          -- vida máxima (se não conseguir, usa 100)
+}
+
+-- ==================== ESTADO ====================
+local lastPunchTime = 0
+local lastKickTime = 0
+local sharinganActive = false
+local sharinganEndTime = 0
+local comboStep = 1
+local currentCombo = {}
+local approachEnabled = true
+local enemyBlockEndTime = 0
+
+-- Parry state
+local lastParryTime = 0
+local isParrying = false
+local parryReleaseAt = 0
+local parryRecoveryUntil = 0
+local postParryCounter = false
+local currentParryCooldown = PARRY_COOLDOWN
+
+-- ==================== SISTEMA DE LEITURA DE COMBOS ====================
+local COMBO_TIMEOUT = 1.2
+local MIN_COMBO_LENGTH = 2
+
+local currentTarget = nil
+local activeAnims = {}
+local currentSequence = {}
+local lastAttackObserved = 0
+local detectedCombos = {}      -- lista de combos do inimigo (strings)
+local learnedComboFunctions = {} -- combos convertidos em funções
+
+-- Classificação de golpes (mesma que antes, pode ajustar)
+local function classifyAttack(animId)
+    local lower = tostring(animId):lower()
+    if lower:find("punch") or lower:find("soco") or lower:find("jab") or lower:find("cross") or lower:find("uppercut") or lower:find("lmb") then
+        return "Soco"
+    elseif (lower:find("high") and lower:find("kick")) or lower:find("highkick") or lower:find("high_kick") or lower:find("chutealto") then
+        return "Chute Alto"
+    elseif (lower:find("low") and lower:find("kick")) or lower:find("lowkick") or lower:find("low_kick") or lower:find("chutebaixo") then
+        return "Chute Baixo"
+    elseif lower:find("kick") or lower:find("chute") then
+        return "Chute"
+    elseif lower:find("attack") or lower:find("hit") or lower:find("ataque") or lower:find("golpe") then
+        return "Ataque"
+    else
+        return nil
+    end
+end
+
+local attackFunctionMap = {
+    ["Soco"] = "punch",
+    ["Chute Alto"] = "highkick",
+    ["Chute Baixo"] = "lowkick",
+    ["Chute"] = "highkick",
+    ["Ataque"] = "punch",
+}
+
+-- ==================== COMBOS PRÉ-DEFINIDOS ====================
+-- Combos fortes (para inimigos fracos)
+local strongCombos = {
+    {executeHighKick, executeHighKick, executePunch, executePunch},
+    {executeLowKick, executeHighKick, executePunch, executeHighKick},
+    {executeHighKick, executePunch, executeLowKick, executeHighKick},
+}
+
+-- Combos normais (fallback)
+local fallbackCombos = {
+    {executePunch, executePunch, executePunch, executeHighKick},
+    {executePunch, executePunch, executePunch, executeLowKick},
+    {executeHighKick, executePunch, executePunch, executePunch},
+    {executeLowKick, executePunch, executePunch, executePunch},
+}
+
+-- ==================== FUNÇÕES AUXILIARES ====================
+local function findNearestEnemy()
+    local char = player.Character
+    if not char then return nil end
+    local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso")
+    if not root then return nil end
+
+    local nearest, minDist = nil, DETECTION_RANGE
+    for _, other in ipairs(Players:GetPlayers()) do
+        if other ~= player and other.Character then
+            local otherRoot = other.Character:FindFirstChild("HumanoidRootPart") or other.Character:FindFirstChild("Torso")
+            local otherHum = other.Character:FindFirstChildOfClass("Humanoid")
+            if otherRoot and otherHum and otherHum.Health > 0 then
+                local d = (root.Position - otherRoot.Position).Magnitude
+                if d < minDist then
+                    minDist = d
+                    nearest = other.Character
+                end
+            end
+        end
+    end
+    return nearest
+end
+
+local function isEnemyAttackingNow(enemyChar)
+    if not enemyChar then return false end
+    local hum = enemyChar:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return false end
+    for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
+        local anim = track.Animation
+        if anim and track.IsPlaying then
+            local name = string.lower(anim.AnimationId)
+            if name:find("attack") or name:find("punch") or name:find("kick") or name:find("soco") or name:find("chute") or name:find("hit") then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function isEnemyBlockingNow(enemyChar)
+    if not enemyChar then return false end
+    local hum = enemyChar:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return false end
+    for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
+        local anim = track.Animation
+        if anim and track.IsPlaying then
+            local name = string.lower(anim.AnimationId)
+            if name:find("block") or name:find("guard") or name:find("defend") or name:find("defesa") or name:find("bloqueio") then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function getEnemyBlockRemainingTime(enemyChar)
+    if not enemyChar then return 0 end
+    local hum = enemyChar:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return 0 end
+    local maxRemaining = 0
+    for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
+        local anim = track.Animation
+        if anim and track.IsPlaying then
+            local name = string.lower(anim.AnimationId)
+            if name:find("block") or name:find("guard") or name:find("defend") or name:find("defesa") or name:find("bloqueio") then
+                local remaining = track.Length - track.TimePosition
+                if remaining > maxRemaining then maxRemaining = remaining end
+            end
+        end
+    end
+    return maxRemaining
+end
+
+local function updateEnemyStats(enemyChar, myRoot)
+    if not enemyChar or not myRoot then return end
+    local targetRoot = enemyChar:FindFirstChild("HumanoidRootPart") or enemyChar:FindFirstChild("Torso")
+    if not targetRoot then return end
+
+    local now = tick()
+    local dist = (myRoot.Position - targetRoot.Position).Magnitude
+
+    enemyStats.totalDistance = enemyStats.totalDistance + dist
+    enemyStats.distanceSamples = enemyStats.distanceSamples + 1
+
+    if isEnemyAttackingNow(enemyChar) then
+        if now - enemyStats.lastAttackTime > 0.5 then
+            enemyStats.attackCount = enemyStats.attackCount + 1
+            enemyStats.attackWindow = now + 3.0
+            enemyStats.lastAttackTime = now
+        end
+    end
+    if now > enemyStats.attackWindow then enemyStats.attackCount = 0 end
+
+    if enemyStats.lastPosition then
+        local distBefore = (myRoot.Position - enemyStats.lastPosition).Magnitude
+        if dist > distBefore and dist > ATTACK_RANGE then
+            if now - enemyStats.retreatWindow > 2.0 then
+                enemyStats.retreatCount = enemyStats.retreatCount + 1
+                enemyStats.retreatWindow = now + 2.0
+            end
+        end
+    end
+    enemyStats.lastPosition = targetRoot.Position
+
+    if math.floor(now / 5) > math.floor((now - 0.1) / 5) then
+        local avgDist = enemyStats.distanceSamples > 0 and enemyStats.totalDistance / enemyStats.distanceSamples or 999
+        local attackRate = enemyStats.attackCount
+        local retreatRate = enemyStats.retreatCount
+
+        if attackRate >= 4 and avgDist < 6 then
+            enemyStats.playStyle = "aggressive"
+        elseif retreatRate >= 3 and avgDist > 7 then
+            enemyStats.playStyle = "kiter"
+        elseif attackRate <= 1 and retreatRate <= 1 and avgDist > 5 then
+            enemyStats.playStyle = "passive"
+        else
+            enemyStats.playStyle = "balanced"
+        end
+
+        enemyStats.attackCount = math.max(0, enemyStats.attackCount - 1)
+        enemyStats.retreatCount = math.max(0, enemyStats.retreatCount - 1)
+    end
+
+    -- Atualizar maxHealth do inimigo (se conseguir)
+    local hum = enemyChar:FindFirstChildOfClass("Humanoid")
+    if hum then
+        enemyStats.maxHealth = hum.MaxHealth
+    end
+end
+
+-- ==================== DECISÃO DE PARRY (MELHORADA) ====================
+local function shouldParry(enemyChar, myRoot)
+    if not enemyChar or not myRoot then return false end
+    local targetRoot = enemyChar:FindFirstChild("HumanoidRootPart") or enemyChar:FindFirstChild("Torso")
+    if not targetRoot then return false end
+
+    if tick() < parryRecoveryUntil then return false end
+
+    local dist = (myRoot.Position - targetRoot.Position).Magnitude
+
+    -- Se inimigo está atacando com animação
+    if isEnemyAttackingNow(enemyChar) and dist <= 10 then
+        enemyStats.lastAttackTime = tick()
+        return true
+    end
+
+    -- Movimento rápido em nossa direção
+    local vel = targetRoot.Velocity
+    if vel and vel.Magnitude > THREAT_SPEED then
+        local dirToMe = (myRoot.Position - targetRoot.Position).Unit
+        if vel.Unit:Dot(dirToMe) > 0.5 and dist <= THREAT_DISTANCE then
+            return true
+        end
+    end
+
+    -- Previsão: inimigo próximo e olhando para nós
+    if dist <= PREDICTIVE_PARRY_DISTANCE then
+        local toMe = (myRoot.Position - targetRoot.Position).Unit
+        local facing = targetRoot.CFrame.LookVector:Dot(toMe)
+        if facing > 0.3 and not isEnemyBlockingNow(enemyChar) then
+            local moveSpeed = vel and vel.Magnitude or 0
+            if moveSpeed > 2 then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+-- ==================== LEITURA DE COMBOS DO INIMIGO ====================
+local function resetComboObserver(newTarget)
+    currentTarget = newTarget
+    activeAnims = {}
+    currentSequence = {}
+    lastAttackObserved = 0
+end
+
+local function finalizeLearnedCombo()
+    if #currentSequence >= MIN_COMBO_LENGTH then
+        local comboStr = table.concat(currentSequence, " > ")
+        if not table.find(detectedCombos, comboStr) then
+            table.insert(detectedCombos, comboStr)
+            print("⚔️ Aprendido combo do inimigo: " .. comboStr)
+
+            -- Converte para funções
+            local newCombo = {}
+            local valid = true
+            for _, attackType in ipairs(currentSequence) do
+                local funcName = attackFunctionMap[attackType]
+                local func = nil
+                if funcName == "punch" then func = executePunch
+                elseif funcName == "highkick" then func = executeHighKick
+                elseif funcName == "lowkick" then func = executeLowKick end
+                if func then
+                    table.insert(newCombo, func)
+                else
+                    valid = false
+                    break
+                end
+            end
+            if valid and #newCombo >= 2 then
+                table.insert(learnedComboFunctions, newCombo)
+            end
+        end
+    end
+    currentSequence = {}
+    lastAttackObserved = 0
+end
+
+-- Função para processar animações do inimigo
+local function observeEnemyCombos(enemyChar)
+    if not enemyChar then return end
+    local hum = enemyChar:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return end
+
+    local now = tick()
+
+    if #currentSequence > 0 and (now - lastAttackObserved) > COMBO_TIMEOUT then
+        finalizeLearnedCombo()
+    end
+
+    for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
+        if track.IsPlaying then
+            local anim = track.Animation
+            if anim then
+                local classified = classifyAttack(anim.AnimationId)
+                if classified then
+                    local isNew = not activeAnims[track]
+                    local startedRecently = track.TimePosition < ANIMATION_ATTACK_START
+                    if isNew and startedRecently then
+                        activeAnims[track] = true
+                        if #currentSequence > 0 and (now - lastAttackObserved) > COMBO_TIMEOUT then
+                            finalizeLearnedCombo()
+                        end
+                        table.insert(currentSequence, classified)
+                        lastAttackObserved = now
+                    end
+                end
+            end
+        else
+            activeAnims[track] = nil
+        end
+    end
+
+    for track in pairs(activeAnims) do
+        if not track.IsPlaying or not track.Parent then
+            activeAnims[track] = nil
+        end
+    end
+end
+
+-- ==================== GOLPES ====================
+function executePunch()
+    pcall(function() packetRemote:FireServer(PUNCH_BUFFER) end)
+end
+
+function executeHighKick()
+    pcall(function() packetRemote:FireServer(HIGHKICK_BUFFER) end)
+end
+
+function executeLowKick()
+    pcall(function() packetRemote:FireServer(LOWKICK_BUFFER) end)
+end
+
+-- ==================== VERIFICAR SE INIMIGO ESTÁ CAÍDO ====================
+local function isEnemyDown(enemyChar)
+    if not enemyChar then return false end
+    local hum = enemyChar:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return false end
+    for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
+        local anim = track.Animation
+        if anim and track.IsPlaying then
+            local name = string.lower(anim.AnimationId)
+            if name:find("down") or name:find("knock") or name:find("stun") or name:find("fall") or name:find("floor") or name:find("dizzy") or name:find("slow") then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- ==================== ESCOLHA DE COMBO ADAPTATIVA ====================
+local function chooseAdaptiveCombo()
+    local myHum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    local myMaxHealth = myHum and myHum.MaxHealth or 100
+    local enemyMaxHealth = enemyStats.maxHealth or 100
+
+    -- Se inimigo é fraco (vida menor que a nossa * 0.85) -> usar combos fortes
+    if enemyMaxHealth < myMaxHealth * 0.85 then
+        currentCombo = strongCombos[math.random(#strongCombos)]
+        comboStep = 1
+        print("💪 Inimigo fraco: usando combos fortes.")
+        return
+    end
+
+    -- Se inimigo é forte -> priorizar combos aprendidos, senão fallback
+    if #learnedComboFunctions > 0 then
+        currentCombo = learnedComboFunctions[math.random(#learnedComboFunctions)]
+        comboStep = 1
+        print("🧠 Inimigo forte: usando combo aprendido.")
+    else
+        currentCombo = fallbackCombos[math.random(#fallbackCombos)]
+        comboStep = 1
+        print("🥊 Inimigo forte, mas sem combos aprendidos. Usando fallback.")
+    end
+end
+
+-- ==================== UI (botões) ====================
+local playerGui = player:WaitForChild("PlayerGui")
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MainUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Botão Sharingan
+local sharinganButton = Instance.new("TextButton")
+sharinganButton.Size = UDim2.new(0, 70, 0, 70)
+sharinganButton.Position = UDim2.new(0.85, 0, 0.78, 0)
+sharinganButton.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+sharinganButton.BackgroundTransparency = 0.1
+sharinganButton.TextColor3 = Color3.new(1, 1, 1)
+sharinganButton.Text = "写"
+sharinganButton.Font = Enum.Font.SourceSansBold
+sharinganButton.TextSize = 30
+sharinganButton.AutoButtonColor = true
+sharinganButton.AnchorPoint = Vector2.new(0.5, 0.5)
+sharinganButton.Parent = screenGui
+Instance.new("UIStroke", sharinganButton).Color = Color3.fromRGB(255,100,100)
+sharinganButton.Activated:Connect(function()
+    sharinganActive = true
+    sharinganEndTime = tick() + SHARINGAN_DURATION
+    sharinganButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    wait(SHARINGAN_DURATION)
+    sharinganButton.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+    sharinganActive = false
+end)
+
+-- Botão Aproximação
+local approachButton = Instance.new("TextButton")
+approachButton.Size = UDim2.new(0, 120, 0, 40)
+approachButton.Position = UDim2.new(0.75, 0, 0.75, 0)
+approachButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+approachButton.BackgroundTransparency = 0.1
+approachButton.TextColor3 = Color3.new(1, 1, 1)
+approachButton.Text = "APROX: ON"
+approachButton.Font = Enum.Font.SourceSansBold
+approachButton.TextSize = 16
+approachButton.AutoButtonColor = true
+approachButton.AnchorPoint = Vector2.new(0.5, 0.5)
+approachButton.Parent = screenGui
+Instance.new("UIStroke", approachButton).Color = Color3.fromRGB(0,200,0)
+approachButton.Activated:Connect(function()
+    approachEnabled = not approachEnabled
+    if approachEnabled then
+        approachButton.Text = "APROX: ON"
+        approachButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+    else
+        approachButton.Text = "APROX: OFF"
+        approachButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    end
+end)
+
+-- ==================== LOOP PRINCIPAL ====================
+RunService.RenderStepped:Connect(function()
+    local char = player.Character
+    if not char then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then
+        if isParrying then
+            pcall(function() packetRemote:FireServer(PARRY_RELEASE) end)
+            isParrying = false
+        end
+        return
+    end
+
+    -- Soltar parry se pressionou tempo suficiente
+    if isParrying and tick() >= parryReleaseAt then
+        pcall(function() packetRemote:FireServer(PARRY_RELEASE) end)
+        isParrying = false
+        postParryCounter = true
+        parryRecoveryUntil = tick() + PARRY_RECOVERY
+    end
+
+    local myRoot = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso")
+    if not myRoot then return end
+
+    local target = findNearestEnemy()
+    if not target then
+        if isParrying then
+            pcall(function() packetRemote:FireServer(PARRY_RELEASE) end)
+            isParrying = false
+        end
+        if humanoid then humanoid.WalkSpeed = 16 end
+        return
+    end
+
+    local targetRoot = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso")
+    if not targetRoot then return end
+
+    updateEnemyStats(target, myRoot)
+
+    -- Observar combos do inimigo continuamente
+    if target ~= currentTarget then
+        resetComboObserver(target)
+    end
+    observeEnemyCombos(target)
+
+    -- At
