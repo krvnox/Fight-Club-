@@ -1,0 +1,1508 @@
+--[[
+    ╔══════════════════════════════════════════════════════════════════════════════╗
+    ║  SCARLET 🌙 MOBILE HUB V6.0 - COMPLETO COM TODOS OS BOTÕES & ANIMAÇÕES      ║
+    ║  • INTERFACE COMPLETA TOUCH & DRAGGABLE (BOTÃO 🌙 FLUTUANTE)                ║
+    ║  • AUTO-COMBO AUTOMÁTICO COMPLETO + ROTATION PRESETS (7 PADRÕES DE GOLPES)   ║
+    ║  • ANIMAÇÃO DE GUARDA REAL ATIVA & SUAVE (SEM CONGELAR OS PASSOS AO ANDAR)  ║
+    ║  • SHIELD PIERCER (FURA BLOQUEIO DO INIMIGO COM FLANK VECTOR)                ║
+    ║  • ANTI-BLOCK MASTER (QUEBRA ESCUDO INIMIGO COM RASTEIRA/KICK INSTANTÂNEO)  ║
+    ║  • FLASH PARRY & LIGHTNING PARRY (MICRO-BURST ULTRA RÁPIDO)                  ║
+    ║  • WHIFF PUNISHER & OKIZEME WAKE-UP MEATY TIMING                             ║
+    ║  • TOTAL MOBILITY PRESERVATION: NUNCA MAIS TRAVA O JOYSTICK NO MOBILE        ║
+    ╚══════════════════════════════════════════════════════════════════════════════╝
+    Executores Homologados: Delta Mobile, Arceus X, Solara, Fluxus, Wave, Codex, PC
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+
+local VirtualInputManager = nil
+pcall(function()
+    VirtualInputManager = game:GetService("VirtualInputManager")
+end)
+local VirtualUser = nil
+pcall(function()
+    VirtualUser = game:GetService("VirtualUser")
+end)
+
+local LocalPlayer = Players.LocalPlayer
+local IsMobileDevice = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+-- ==================== CONFIGURAÇÕES GLOBAIS COM CONSCIÊNCIA DE JOGO V6.0 ====================
+local CONFIG = {
+    ENABLED = true,                                     -- Sistema Geral Ativo
+    AUTO_COMBO_ENABLED = false,                          -- Auto-Combo Automático Ativo (Funciona andando e parado)
+    
+    -- ANTI-SPACING & ANTI-POKE THREAT (INIMIGO QUE FICA DE LONGE PARA BATER E FUGIR)
+    ANTI_SPACING_DETECTOR = true,                       -- Detecta golpes longos/pokes com avanço (até 13.5 studs)
+    LUNGE_VELOCITY_DETECTOR = true,                     -- Analisa aceleração/velocidade do inimigo avançando
+    FLASH_PARRY_DISENGAGE = true,                       -- Bloqueia rápido (35ms) e solta na hora para sair/punir
+    SPACING_MAX_REACH = 13.5,                           -- Alcance do radar de espaçamento (13.5 studs)
+    INSTANT_DISENGAGE_SPEED = 0.040,                    -- Duração micro-flash de guarda (35ms)
+    
+    -- ANTI-SPAM & SINGLE-PARRY LOCK (ELIMINA METRALHADORA DE 'F' / 1 PARRY POR SWING)
+    ANTI_SPAM_PARRY_LOCK = true,                        -- Trava rigorosa de 1 parry por golpe
+    ANTI_SPAM_PARRY_COOLDOWN = 0.35,                    -- Cooldown mínimo entre parries (0.35s)
+    SINGLE_PARRY_PER_SWING = true,                      -- Não repete parry na mesma animação de ataque
+    
+    -- SHIELD PIERCER (BYPASS DE DEFESA - INIMIGO TOMA DANO MESMO BLOQUEANDO)
+    SHIELD_PIERCER = true,                              -- Fura a defesa do inimigo (Flank Hitbox Bypass)
+    ANGLE_BYPASS = true,                                -- Contorna o cone de 90° de guarda frontal do Roblox
+    ANTI_BLOCK_SPAM = true,                             -- Pune e destrói oponentes que spammam tecla F
+    
+    -- AUTO-PARRY ULTRARRÁPIDO & PROTEÇÃO ANTI-KICK
+    LIGHTNING_PARRY = true,                             -- Parry ultrarrápido (45ms micro-tap)
+    PARRY_SPEED_MULT = 2.5,                             -- Velocidade acelerada da animação de guarda (2.5x)
+    ANTI_KICK_SAFETY = true,                            -- Rate-limit e proteção anti-desconexão/anti-cheat
+    
+    -- AUTO-BLOCK CONSCIENTE & PRESERVAÇÃO DE MOBILIDADE (NUNCA TRAVA O ANDAR)
+    PRESERVE_MOBILITY = true,                           -- Garante locomoção e destrava o joystick sempre
+    SPEED_OVERRIDE_ENABLED = false,                     -- DESATIVADO: Mantém velocidade 100% natural do jogo (sem aceleração forçada)
+    STRICT_MELEE_RANGE = true,                          -- Só defende no alcance físico real de contato
+    MAX_MELEE_REACH = 6.5,                              -- Alcance máximo real de soco (7.2 studs)
+    GUARD_COOLDOWN = 0.32,                              -- Cooldown anti-spam de guarda (0.32s)
+    MIN_SAFE_WALKSPEED = 16,                            -- Velocidade mínima (caso override seja ativado)
+    
+    -- AUTO-BLOCK LEGIT HUMANIZER (DISFARCE TOTAL & TEMPO HUMANO)
+    HUMANIZE_BLOCK = false,                             -- Ativar Humanização de Defesa (Disfarçado)
+    BLOCK_MODE = "instant",                             -- 'instant', 'semi_legit', 'legit'
+    HUMAN_REACTION_DELAY = 0.08,                        -- Reação rápida de 80ms
+    BLOCK_JITTER_MS = 20,                               -- Variação orgânica aleatória
+    HUMAN_HOLD_DURATION = 0.12,                         -- Tempo de guarda ágil sem travar o andar
+    ANTI_SPECTATOR = true,                              -- Proteção anti-espectador
+    
+    -- AUTO-BLOCK MULTI-VETOR & ANIMAÇÃO GARANTIDA
+    AUTO_BLOCK_ENABLED = true,                          -- Auto-Block Ativo
+    FORCE_VISIBLE_ANIMATION = true,                     -- Animação visível garantida!
+    BLOCK_EXECUTION_METHOD = "hybrid_all",              -- 'hybrid_all', 'virtual_input', 'direct_remote'
+    
+    -- GAME SENSE & CONSCIÊNCIA DE JOGO
+    GAME_SENSE_ENABLED = true,                          -- IA de noções e consciência de combate
+    SMART_AUTO_BLOCK = true,                            -- Sabe quando defender e quando NÃO defender
+    ANTI_GB_EVASION = true,                             -- Não defende contra Guard Break inimigo (ataca primeiro)
+    WHIFF_PUNISH_ENABLED = true,                        -- Punição em recovery frames de erro inimigo
+    OKIZEME_WAKEUP_GUARD = true,                        -- Não ataca em i-frame de knockdown (espera wake-up)
+    BURST_DPS_LOW_HP = true,                            -- Finalizador rápido se inimigo estiver com < 30% HP
+    
+    -- ANTI-BLOCK (QUEBRA DE DEFESA INIMIGA)
+    ANTI_BLOCK_ENABLED = true,                          -- Anti-Block (Inimigo Não Consegue Bloquear)
+    GUARD_BREAK_TYPE = "instant_kick",                  -- Tipo de Quebra de Guarda
+    ANTI_BLOCK_REACTION = 0.005,                        -- Reação anti-block (0.005s)
+    
+    -- RANGES E DELAYS DE COMBATE
+    DETECTION_RANGE = 45,                               -- Alcance do radar (studs)
+    ATTACK_RANGE = 14,                                  -- Alcance do Auto-Combo (studs)
+    DANGER_RANGE = 8,                                   -- Distância de perigo (studs)
+    COMBO_DELAY = 0.08,                                 -- Delay entre combos
+    PERFECT_M1_SPEED = 0.075,                           -- Velocidade do M1
+    REACTION_SPEED = 0.010,                             -- Velocidade de resposta
+    
+    -- DEFESA RÁPIDA (FALLBACK SE HUMANIZER ESTIVER OFF)
+    FAST_BLOCK_DURATION = 0.065,                        -- 0.065s (Micro tap veloz)
+    BLOCK_COOLDOWN = 0.12,                              -- Intervalo de parry
+    
+    TOGGLE_KEY = "V",                                   -- Tecla PC
+    REMOTE_NAME = "RemoteEvent",                        -- Nome do Remote
+    PACKET_FOLDER = "Packet"                            -- Pasta ReplicatedStorage
+}
+
+-- ==================== ESTADO DO SISTEMA ====================
+local SubaruState = {
+    Enabled = CONFIG.ENABLED,
+    GameSense = CONFIG.GAME_SENSE_ENABLED,
+    AntiBlock = CONFIG.ANTI_BLOCK_ENABLED,
+    CurrentVersion = "Scarlet-V6.0-FullHub-Pro",
+    IsBlocking = false,
+    IsAttacking = false,
+    PriorityMode = false,
+    SavedWalkSpeed = 16,
+    Target = nil,
+    EnemyState = "NEUTRAL",
+    LastAction = 0,
+    LastComboTime = 0,
+    LastBlockTime = 0,
+    LastBlockFinishedTime = 0,
+    LastGuardBreakTime = 0,
+    LastWhiffPunishTime = 0,
+    LastRemoteSendTime = 0,
+    RecentPacketCount = 0,
+    LastPacketReset = 0,
+    BlockThread = nil,
+    ComboStep = 0,
+    ActiveBlockTrack = nil,
+    HandledAttacks = {}                                 -- Rastreamento de instâncias de ataque
+}
+
+-- ==================== DISCOVERY DE REMOTES UNIVERSAL ====================
+local PacketRemote = nil
+local DiscoveredCombatRemotes = {}
+
+local function ScanForCombatRemotes()
+    DiscoveredCombatRemotes = {}
+    
+    -- 1. Busca específica por PacketRemote
+    pcall(function()
+        local folder = ReplicatedStorage:FindFirstChild(CONFIG.PACKET_FOLDER)
+        if folder then
+            local r = folder:FindFirstChild(CONFIG.REMOTE_NAME) or folder:FindFirstChild("Packet") or folder:FindFirstChildOfClass("RemoteEvent")
+            if r then PacketRemote = r end
+        end
+    end)
+    
+    -- 2. Scanner Multi-Remote em todo o ReplicatedStorage e Personagem
+    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+            local n = obj.Name:lower()
+            if n:find("block") or n:find("guard") or n:find("parry") or n:find("defend") or n:find("combat") or n:find("action") or n:find("packet") or n:find("skill") or n:find("hit") or n:find("attack") then
+                table.insert(DiscoveredCombatRemotes, obj)
+                if not PacketRemote and (n:find("packet") or n == CONFIG.REMOTE_NAME:lower()) then
+                    PacketRemote = obj
+                end
+            end
+        end
+    end
+    
+    if not PacketRemote and #DiscoveredCombatRemotes > 0 then
+        PacketRemote = DiscoveredCombatRemotes[1]
+    end
+end
+
+ScanForCombatRemotes()
+
+-- ==================== DEFINIÇÃO DE BUFFERS (OPCODES) ====================
+local ACTION_BUFFERS = {
+    PUNCH       = buffer.fromstring("\005\003lmb\000\000\000\000\000"),
+    HIGH_KICK   = buffer.fromstring("\005\bkeypress\v\001q\000\000\000\000"),
+    LOW_KICK    = buffer.fromstring("\005\bkeypress\v\001e\000\000\000\000"),
+    BLOCK_ON    = buffer.fromstring("\005\bkeypress\v\001f\000\000\000\000"),
+    BLOCK_OFF   = buffer.fromstring("\005\bkeyrelease\v\001f\000\000\000\000")
+}
+
+-- ==================== GERENCIADOR DE ANIMAÇÃO DE AUTO-BLOCK (CORRIGIDO PARA NÃO TRAVAR PERNAS) ====================
+local function GetOrLoadBlockAnimationTrack(hum)
+    if not hum then return nil end
+    
+    -- 1. Procura track de guarda/bloqueio já carregada e ativa no Humanoid
+    for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
+        local n = tostring(track.Name):lower() .. " " .. tostring(track.Animation.AnimationId):lower()
+        if n:find("block") or n:find("guard") or n:find("parry") or n:find("shield") or n:find("defend") then
+            return track
+        end
+    end
+    
+    local char = hum.Parent
+    local animObj = nil
+    
+    -- 2. Busca animação de bloqueio no script nativo 'Animate' do personagem
+    if char then
+        local animateScript = char:FindFirstChild("Animate")
+        if animateScript then
+            local blockFolder = animateScript:FindFirstChild("block") or animateScript:FindFirstChild("guard") or animateScript:FindFirstChild("defend")
+            if blockFolder then
+                animObj = blockFolder:FindFirstChildOfClass("Animation") or blockFolder
+            end
+        end
+        
+        -- 3. Procura objeto de animação oficial no próprio personagem ou nas ferramentas
+        if not animObj then
+            for _, desc in ipairs(char:GetDescendants()) do
+                if desc:IsA("Animation") then
+                    local dn = desc.Name:lower()
+                    if dn:find("block") or dn:find("guard") or dn:find("parry") or dn:find("defend") then
+                        animObj = desc
+                        break
+                    end
+                end
+            end
+        end
+    end
+    
+    -- 4. Busca nos pacotes de combate do ReplicatedStorage
+    if not animObj then
+        for _, desc in ipairs(ReplicatedStorage:GetDescendants()) do
+            if desc:IsA("Animation") then
+                local dn = desc.Name:lower()
+                if dn:find("block") or dn:find("guard") or dn:find("parry") then
+                    animObj = desc
+                    break
+                end
+            end
+        end
+    end
+    
+    -- 5. Fallback Universal: Animação clássica de postura de guarda R6/R15
+    if not animObj then
+        animObj = Instance.new("Animation")
+        animObj.AnimationId = (hum.RigType == Enum.HumanoidRigType.R6) and "rbxassetid://180426354" or "rbxassetid://507766388"
+    end
+    
+    local success, track = pcall(function()
+        return hum:LoadAnimation(animObj)
+    end)
+    
+    if success and track then
+        -- CORREÇÃO V6.0: Usamos Action (não Action4) com peso adaptativo para NUNCA paralisar o deslocamento das pernas
+        track.Priority = Enum.AnimationPriority.Action
+        track.Looped = true
+        return track
+    end
+    
+    return nil
+end
+
+-- Executa a animação visual de Auto-Block com suporte total a andar simultaneamente
+local function PlayVisibleBlockAnimation(hum)
+    if not hum or not CONFIG.FORCE_VISIBLE_ANIMATION then return end
+    
+    local track = SubaruState.ActiveBlockTrack or GetOrLoadBlockAnimationTrack(hum)
+    if track then
+        SubaruState.ActiveBlockTrack = track
+        if not track.IsPlaying then
+            -- Se estiver andando, toca com peso 0.6 para que os braços defendam mas as pernas corram livremente!
+            local weight = (hum.MoveDirection.Magnitude > 0.05) and 0.65 or 1.0
+            local speedMult = CONFIG.LIGHTNING_PARRY and (CONFIG.PARRY_SPEED_MULT or 2.2) or 1.0
+            track:Play(0.02, weight, speedMult)
+        end
+    end
+end
+
+local function StopVisibleBlockAnimation(hum)
+    if SubaruState.ActiveBlockTrack then
+        pcall(function()
+            SubaruState.ActiveBlockTrack:Stop(0.04)
+        end)
+        SubaruState.ActiveBlockTrack = nil
+    end
+    
+    if hum then
+        for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
+            local n = tostring(track.Name):lower() .. " " .. tostring(track.Animation.AnimationId):lower()
+            if n:find("block") or n:find("guard") or n:find("parry") then
+                pcall(function() track:Stop(0.04) end)
+            end
+        end
+    end
+end
+
+-- ==================== NÚCLEO DE COMBATE MULTI-VETOR COM CONSCIÊNCIA DE JOGO V6.0 ====================
+local CombatActions = {}
+local isBlockQueued = false
+
+-- Envio Seguro Anti-Kick (Rate-Limit & Proteção contra Desconexão do Servidor)
+function CombatActions.Send(actionBuffer)
+    if not PacketRemote then return end
+    local now = tick()
+    
+    if CONFIG.ANTI_KICK_SAFETY then
+        if now - SubaruState.LastPacketReset > 1 then
+            SubaruState.RecentPacketCount = 0
+            SubaruState.LastPacketReset = now
+        end
+        if SubaruState.RecentPacketCount >= 26 then
+            return
+        end
+        SubaruState.RecentPacketCount = SubaruState.RecentPacketCount + 1
+    end
+    
+    pcall(function()
+        PacketRemote:FireServer(actionBuffer)
+    end)
+    SubaruState.LastAction = now
+    SubaruState.LastRemoteSendTime = now
+end
+
+-- Dispara ataques M1 e inputs de combate seguros
+function CombatActions.PerformM1Attack(targetChar)
+    local now = tick()
+    SubaruState.LastAction = now
+    
+    CombatActions.Send(ACTION_BUFFERS.PUNCH)
+    
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char then
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then
+                tool:Activate()
+            end
+        end
+    end)
+    
+    if targetChar then
+        local tRoot = targetChar:FindFirstChild("HumanoidRootPart")
+        for _, rem in ipairs(DiscoveredCombatRemotes) do
+            pcall(function()
+                if rem:IsA("RemoteEvent") then
+                    local rn = rem.Name:lower()
+                    if rn:find("hit") or rn:find("attack") or rn:find("combat") or rn:find("m1") or rn:find("damage") or rn:find("punch") then
+                        if tRoot then
+                            rem:FireServer(targetChar, tRoot.CFrame, "M1")
+                            rem:FireServer("Hit", targetChar, tRoot.CFrame)
+                            rem:FireServer("Attack")
+                        else
+                            rem:FireServer("Attack")
+                            rem:FireServer("M1")
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end
+
+-- Dispara Chute Baixo / Rasteira (E) para Quebra de Guarda e Anti-Block
+function CombatActions.PerformLowKick(targetChar)
+    local now = tick()
+    SubaruState.LastAction = now
+    
+    CombatActions.Send(ACTION_BUFFERS.LOW_KICK)
+    
+    if not IsMobileDevice and VirtualInputManager then
+        pcall(function()
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+            task.delay(0.035, function()
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+            end)
+        end)
+    end
+    
+    if targetChar then
+        local tRoot = targetChar:FindFirstChild("HumanoidRootPart")
+        for _, rem in ipairs(DiscoveredCombatRemotes) do
+            pcall(function()
+                if rem:IsA("RemoteEvent") then
+                    local rn = rem.Name:lower()
+                    if rn:find("kick") or rn:find("guardbreak") or rn:find("break") or rn:find("skill") or rn:find("attack") or rn:find("combat") or rn:find("hit") or rn:find("e") or rn:find("damage") then
+                        if tRoot then
+                            rem:FireServer(targetChar, tRoot.CFrame, "LowKick")
+                            rem:FireServer("LowKick", targetChar, tRoot.CFrame)
+                            rem:FireServer("GuardBreak", targetChar, tRoot.CFrame)
+                            rem:FireServer("E", targetChar)
+                        else
+                            rem:FireServer("LowKick")
+                            rem:FireServer("GuardBreak")
+                            rem:FireServer("E")
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end
+
+-- Dispara Chute Alto / Finisher (Q) para estender combo e finalizar
+function CombatActions.PerformHighKick(targetChar)
+    local now = tick()
+    SubaruState.LastAction = now
+    
+    CombatActions.Send(ACTION_BUFFERS.HIGH_KICK)
+    
+    if not IsMobileDevice and VirtualInputManager then
+        pcall(function()
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
+            task.delay(0.035, function()
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
+            end)
+        end)
+    end
+    
+    if targetChar then
+        local tRoot = targetChar:FindFirstChild("HumanoidRootPart")
+        for _, rem in ipairs(DiscoveredCombatRemotes) do
+            pcall(function()
+                if rem:IsA("RemoteEvent") then
+                    local rn = rem.Name:lower()
+                    if rn:find("kick") or rn:find("highkick") or rn:find("heavy") or rn:find("finisher") or rn:find("skill") or rn:find("attack") or rn:find("combat") or rn:find("hit") or rn:find("q") or rn:find("damage") then
+                        if tRoot then
+                            rem:FireServer(targetChar, tRoot.CFrame, "HighKick")
+                            rem:FireServer("HighKick", targetChar, tRoot.CFrame)
+                            rem:FireServer("Heavy", targetChar, tRoot.CFrame)
+                            rem:FireServer("Q", targetChar)
+                        else
+                            rem:FireServer("HighKick")
+                            rem:FireServer("Heavy")
+                            rem:FireServer("Q")
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end
+
+-- Dispara todos os remotes de defesa descobertos com payloads universais
+function CombatActions.FireAllBlockRemotes(state)
+    local now = tick()
+    if CONFIG.ANTI_KICK_SAFETY and (now - SubaruState.LastRemoteSendTime < 0.015) then
+        return
+    end
+    SubaruState.LastRemoteSendTime = now
+    
+    for _, rem in ipairs(DiscoveredCombatRemotes) do
+        pcall(function()
+            if rem:IsA("RemoteEvent") then
+                local rn = rem.Name:lower()
+                if rn:find("block") or rn:find("guard") or rn:find("parry") or rn:find("defend") then
+                    rem:FireServer(state)
+                    rem:FireServer("Block", state)
+                    rem:FireServer("Guard", state)
+                    rem:FireServer({ Action = "Block", State = state, Key = "F" })
+                    rem:FireServer("F", state)
+                end
+            elseif rem:IsA("RemoteFunction") then
+                local rn = rem.Name:lower()
+                if rn:find("block") or rn:find("guard") or rn:find("parry") or rn:find("defend") then
+                    rem:InvokeServer("Block", state)
+                end
+            end
+        end)
+    end
+end
+
+-- Controle Global do Estado de Defesa (Rápido, Confiável e 100% Livre para Locomoção e Joysticks Mobile)
+function CombatActions.SetBlockState(state)
+    SubaruState.IsBlocking = state
+    
+    -- [VETOR 1: VirtualInputManager - APENAS NO PC para NUNCA travar o joystick touch no mobile]
+    if not IsMobileDevice and VirtualInputManager then
+        pcall(function()
+            VirtualInputManager:SendKeyEvent(state, Enum.KeyCode.F, false, game)
+        end)
+    end
+    
+    -- [VETOR 2: Animação de Guarda Garantida & Suave]
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            if state and CONFIG.FORCE_VISIBLE_ANIMATION then
+                PlayVisibleBlockAnimation(hum)
+            else
+                StopVisibleBlockAnimation(hum)
+            end
+            
+            -- Restauração Suave sem Aceleração Forçada
+            if not state then
+                if CONFIG.SPEED_OVERRIDE_ENABLED then
+                    local targetSpeed = CONFIG.MIN_SAFE_WALKSPEED or 16
+                    if hum.WalkSpeed < targetSpeed then
+                        hum.WalkSpeed = targetSpeed
+                    end
+                end
+                pcall(function()
+                    hum.PlatformStand = false
+                    hum.Sit = false
+                end)
+            end
+        end
+        
+        -- [VETOR 3: Sincronização de Atributos Oficiais de Defesa]
+        pcall(function()
+            char:SetAttribute("Blocking", state)
+            char:SetAttribute("Guard", state)
+            char:SetAttribute("IsBlocking", state)
+            char:SetAttribute("Parry", state)
+            LocalPlayer:SetAttribute("Blocking", state)
+        end)
+    end
+    
+    -- [VETOR 4: Envio de Opcodes e Multi-Remotes]
+    if state then
+        CombatActions.Send(ACTION_BUFFERS.BLOCK_ON)
+        CombatActions.FireAllBlockRemotes(true)
+    else
+        CombatActions.Send(ACTION_BUFFERS.BLOCK_OFF)
+        CombatActions.FireAllBlockRemotes(false)
+    end
+end
+
+-- ==================== AUTO-BLOCK PURO & CONSCIENTE V6.0 ====================
+function CombatActions.TriggerAutoBlock(attackKey)
+    if not CONFIG.AUTO_BLOCK_ENABLED then return end
+    if SubaruState.IsAttacking then return end
+    if SubaruState.IsBlocking or isBlockQueued then return end
+    
+    local now = tick()
+    local minCooldown = CONFIG.GUARD_COOLDOWN or 0.30
+    if now - SubaruState.LastBlockFinishedTime < minCooldown then return end
+    if now - SubaruState.LastBlockTime < minCooldown then return end
+    
+    if attackKey and SubaruState.HandledAttacks[attackKey] and (now - SubaruState.HandledAttacks[attackKey] < 0.65) then
+        return
+    end
+    if attackKey then SubaruState.HandledAttacks[attackKey] = now end
+    
+    SubaruState.LastBlockTime = now
+    isBlockQueued = true
+    
+    local blockHoldDuration = CONFIG.FAST_BLOCK_DURATION or 0.065
+    local reactionDelay = 0.002
+    
+    if CONFIG.HUMANIZE_BLOCK then
+        local jitter = (math.random(-5, 10) / 1000)
+        reactionDelay = math.max(0.02, (CONFIG.HUMAN_REACTION_DELAY or 0.08) + jitter)
+        blockHoldDuration = math.max(0.08, (CONFIG.HUMAN_HOLD_DURATION or 0.12) + (math.random(-5, 5) / 1000))
+    else
+        blockHoldDuration = CONFIG.LIGHTNING_PARRY and 0.045 or (CONFIG.FAST_BLOCK_DURATION or 0.065)
+    end
+    
+    task.delay(reactionDelay, function()
+        isBlockQueued = false
+        if not SubaruState.Enabled or SubaruState.IsAttacking then return end
+        
+        CombatActions.SetBlockState(true)
+        
+        if SubaruState.BlockThread then task.cancel(SubaruState.BlockThread) end
+        
+        SubaruState.BlockThread = task.delay(blockHoldDuration, function()
+            CombatActions.ReleaseBlock()
+        end)
+    end)
+end
+
+-- Aliases para compatibilidade total
+function CombatActions.TriggerFastBlock(attackKey)
+    CombatActions.TriggerAutoBlock(attackKey)
+end
+
+function CombatActions.TriggerSmartBlock(attackKey)
+    CombatActions.TriggerAutoBlock(attackKey)
+end
+
+function CombatActions.TriggerFlashParryDisengage(attackKey)
+    CombatActions.TriggerAutoBlock(attackKey)
+end
+
+function CombatActions.TriggerFastParry(attackKey)
+    CombatActions.TriggerAutoBlock(attackKey)
+end
+
+-- Liberação Garantida de Guarda e Restauração Total de Movimento
+function CombatActions.ReleaseBlock()
+    isBlockQueued = false
+    if SubaruState.BlockThread then
+        task.cancel(SubaruState.BlockThread)
+        SubaruState.BlockThread = nil
+    end
+    SubaruState.PriorityMode = false
+    SubaruState.LastBlockFinishedTime = tick()
+    CombatActions.SetBlockState(false)
+    
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            if CONFIG.SPEED_OVERRIDE_ENABLED then
+                local targetSpeed = CONFIG.MIN_SAFE_WALKSPEED or 16
+                if hum.WalkSpeed < targetSpeed then
+                    hum.WalkSpeed = targetSpeed
+                end
+            end
+            pcall(function()
+                hum.PlatformStand = false
+                hum.Sit = false
+            end)
+        end
+    end
+end
+
+-- Executa Quebra de Guarda Instantânea (Anti-Block)
+function CombatActions.ExecuteGuardBreak()
+    local now = tick()
+    if now - SubaruState.LastGuardBreakTime < 0.12 then return end
+    SubaruState.LastGuardBreakTime = now
+    
+    CombatActions.PerformLowKick(SubaruState.Target)
+    
+    task.delay(0.06, function()
+        CombatActions.PerformM1Attack(SubaruState.Target)
+    end)
+end
+
+-- ==================== SHIELD PIERCER (BYPASS DE DEFESA DO ADVERSÁRIO) ====================
+function CombatActions.SendWithFlankBypass(actionBuffer, targetChar)
+    if not targetChar then
+        if actionBuffer == ACTION_BUFFERS.HIGH_KICK then
+            CombatActions.PerformHighKick(nil)
+        elseif actionBuffer == ACTION_BUFFERS.LOW_KICK then
+            CombatActions.PerformLowKick(nil)
+        else
+            CombatActions.PerformM1Attack(nil)
+        end
+        return
+    end
+
+    local isEnemyBlocking = false
+    if targetChar:GetAttribute("Blocking") or targetChar:GetAttribute("Guard") or targetChar:GetAttribute("IsBlocking") then
+        isEnemyBlocking = true
+    end
+    local bVal = targetChar:FindFirstChild("Blocking") or targetChar:FindFirstChild("Guard")
+    if bVal and (bVal.Value == true or bVal.Value == 1) then
+        isEnemyBlocking = true
+    end
+    
+    local tHum = targetChar:FindFirstChildOfClass("Humanoid")
+    if tHum then
+        for _, tr in ipairs(tHum:GetPlayingAnimationTracks()) do
+            local tn = tostring(tr.Name):lower() .. " " .. tostring(tr.Animation.AnimationId):lower()
+            if tn:find("block") or tn:find("guard") or tn:find("parry") or tn:find("shield") then
+                isEnemyBlocking = true
+                break
+            end
+        end
+    end
+
+    local tRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    
+    if isEnemyBlocking and CONFIG.SHIELD_PIERCER then
+        if tRoot and CONFIG.ANGLE_BYPASS then
+            pcall(function()
+                local flankCFrame = tRoot.CFrame * CFrame.Angles(0, math.rad(180), 0)
+                for _, rem in ipairs(DiscoveredCombatRemotes) do
+                    if rem:IsA("RemoteEvent") then
+                        rem:FireServer("Hit", targetChar, flankCFrame, actionBuffer)
+                        rem:FireServer("M1", targetChar, flankCFrame)
+                        rem:FireServer("Damage", targetChar, flankCFrame)
+                        rem:FireServer("Kick", targetChar, flankCFrame)
+                    end
+                end
+            end)
+        end
+
+        if actionBuffer == ACTION_BUFFERS.HIGH_KICK then
+            CombatActions.PerformHighKick(targetChar)
+        elseif actionBuffer == ACTION_BUFFERS.LOW_KICK then
+            CombatActions.PerformLowKick(targetChar)
+        else
+            CombatActions.PerformM1Attack(targetChar)
+        end
+        
+        if CONFIG.ANTI_BLOCK_SPAM then
+            task.spawn(function()
+                CombatActions.ExecuteGuardBreak()
+            end)
+        end
+    else
+        if actionBuffer == ACTION_BUFFERS.HIGH_KICK then
+            CombatActions.PerformHighKick(targetChar)
+        elseif actionBuffer == ACTION_BUFFERS.LOW_KICK then
+            CombatActions.PerformLowKick(targetChar)
+        else
+            CombatActions.PerformM1Attack(targetChar)
+        end
+    end
+end
+
+-- ==================== MÓDULO GAME SENSE (INTELIGÊNCIA & CONSCIÊNCIA DE JOGO V6.0) ====================
+local GameSense = {}
+
+function GameSense.AnalyzeTarget(targetChar)
+    local analysis = {
+        isValid = false,
+        distance = 999,
+        isFacingUs = false,
+        isInMeleeReach = false,
+        isAttacking = false,
+        attackKey = nil,
+        isGuardBreak = false,
+        isWhiffRecovery = false,
+        isKnockedDownIFrame = false,
+        isStunnedOrRagdoll = false,
+        isBlocking = false,
+        healthPercent = 100,
+        threatVerdict = "SAFE"
+    }
+
+    if not targetChar or not targetChar:FindFirstChild("HumanoidRootPart") then return analysis end
+    local pChar = LocalPlayer.Character
+    if not pChar or not pChar:FindFirstChild("HumanoidRootPart") then return analysis end
+
+    local pRoot = pChar.HumanoidRootPart
+    local tRoot = targetChar.HumanoidRootPart
+    local tHum = targetChar:FindFirstChildOfClass("Humanoid")
+
+    if not tHum or tHum.Health <= 0 then return analysis end
+
+    analysis.isValid = true
+    analysis.distance = (pRoot.Position - tRoot.Position).Magnitude
+    analysis.healthPercent = (tHum.Health / tHum.MaxHealth) * 100
+
+    local toPlayer = (pRoot.Position - tRoot.Position).Unit
+    local dotProduct = tRoot.CFrame.LookVector:Dot(toPlayer)
+    analysis.isFacingUs = (dotProduct > -0.2) or (analysis.distance <= (CONFIG.MAX_MELEE_REACH or 7.2))
+
+    local maxReach = math.max(CONFIG.MAX_MELEE_REACH or 7.2, 7.2)
+    analysis.isInMeleeReach = (analysis.distance <= maxReach)
+    analysis.isSpacingDistance = (analysis.distance > maxReach and analysis.distance <= (CONFIG.SPACING_MAX_REACH or 13.5))
+    
+    local tVel = tRoot.AssemblyLinearVelocity or tRoot.Velocity or Vector3.zero
+    local approachVelocity = tVel:Dot(toPlayer)
+    analysis.isLungingTowardsUs = (approachVelocity > 6.0)
+    analysis.approachVelocity = approachVelocity
+
+    if targetChar:GetAttribute("Ragdoll") == true or targetChar:GetAttribute("KnockedDown") == true or targetChar:GetAttribute("Stunned") == true or targetChar:GetAttribute("Invulnerable") == true then
+        analysis.isKnockedDownIFrame = true
+        analysis.isStunnedOrRagdoll = true
+    end
+
+    if targetChar:GetAttribute("Blocking") == true or targetChar:GetAttribute("Guard") == true or targetChar:GetAttribute("IsBlocking") == true then
+        analysis.isBlocking = true
+    end
+    local bVal = targetChar:FindFirstChild("Blocking") or targetChar:FindFirstChild("Guard")
+    if bVal and (bVal.Value == true or bVal.Value == 1) then
+        analysis.isBlocking = true
+    end
+
+    if targetChar:GetAttribute("Attacking") == true or targetChar:GetAttribute("Swing") == true or targetChar:GetAttribute("Combat") == true or targetChar:GetAttribute("M1") == true then
+        analysis.isAttacking = true
+        analysis.attackKey = "ATTR_ATTACK_" .. tostring(targetChar) .. "_" .. tostring(math.floor(tick() * 3))
+    end
+
+    local tracks = {}
+    pcall(function()
+        for _, tr in ipairs(tHum:GetPlayingAnimationTracks()) do
+            table.insert(tracks, tr)
+        end
+    end)
+    local animator = tHum:FindFirstChildOfClass("Animator")
+    if animator then
+        pcall(function()
+            for _, tr in ipairs(animator:GetPlayingAnimationTracks()) do
+                table.insert(tracks, tr)
+            end
+        end)
+    end
+
+    for _, track in ipairs(tracks) do
+        if track.IsPlaying and track.WeightCurrent > 0.15 then
+            local aId = tostring(track.Animation.AnimationId):lower()
+            local tName = tostring(track.Name):lower()
+            local combined = aId .. " " .. tName
+
+            if combined:find("block") or combined:find("guard") or combined:find("parry") or combined:find("shield") then
+                analysis.isBlocking = true
+            end
+
+            if combined:find("heavy") or combined:find("break") or combined:find("guardbreak") or combined:find("smash") or combined:find("charge") then
+                analysis.isGuardBreak = true
+            end
+
+            local isLocomotion = (combined:find("idle") or combined:find("walk") or combined:find("run") or combined:find("sprint") or combined:find("jump") or combined:find("fall") or combined:find("land") or combined:find("dance") or combined:find("emote") or combined:find("climb") or combined:find("swim"))
+
+            if not isLocomotion then
+                local hasAttackKeyword = (combined:find("attack") or combined:find("punch") or combined:find("slash") or combined:find("hit") or combined:find("swing") or combined:find("kick") or combined:find("m1") or combined:find("m2") or combined:find("combo") or combined:find("strike") or combined:find("jab") or combined:find("hook") or combined:find("skill") or combined:find("blade") or combined:find("sword") or combined:find("katana"))
+
+                if hasAttackKeyword then
+                    local totalLen = track.Length > 0 and track.Length or 0.8
+                    local progress = track.TimePosition / totalLen
+
+                    if progress >= 0.04 and progress <= 0.75 then
+                        analysis.isAttacking = true
+                        local swingCycle = math.floor(track.TimePosition * 4)
+                        analysis.attackKey = tostring(track.Animation.AnimationId) .. "_cycle_" .. tostring(swingCycle)
+                    elseif progress > 0.75 then
+                        analysis.isWhiffRecovery = true
+                    end
+                end
+            end
+
+            if combined:find("fall") or combined:find("down") or combined:find("ragdoll") or combined:find("getup") or combined:find("wakeup") then
+                analysis.isKnockedDownIFrame = true
+            end
+        end
+    end
+
+    return analysis
+end
+
+function GameSense.ShouldBlock(analysis)
+    if not CONFIG.AUTO_BLOCK_ENABLED then return false, "AUTO_BLOCK_DISABLED" end
+    if SubaruState.IsAttacking then return false, "PLAYER_IS_ATTACKING" end
+
+    if analysis.isGuardBreak and CONFIG.ANTI_GB_EVASION then
+        return false, "ENEMY_CHARGING_GUARD_BREAK"
+    end
+
+    if not analysis.isFacingUs then
+        return false, "ENEMY_NOT_FACING_US"
+    end
+    
+    local maxReach = CONFIG.MAX_MELEE_REACH or 7.2
+    if analysis.distance > maxReach then
+        return false, "OUT_OF_MELEE_REACH"
+    end
+
+    if analysis.isStunnedOrRagdoll or analysis.isKnockedDownIFrame then
+        return false, "ENEMY_STUNNED_OR_DOWN"
+    end
+
+    if analysis.isWhiffRecovery then
+        return false, "ENEMY_IN_WHIFF_RECOVERY"
+    end
+
+    if analysis.isBlocking then
+        return false, "ENEMY_IS_BLOCKING"
+    end
+
+    if tick() - SubaruState.LastBlockFinishedTime < (CONFIG.GUARD_COOLDOWN or 0.30) then
+        return false, "GUARD_COOLDOWN_ACTIVE"
+    end
+
+    if analysis.isAttacking and analysis.distance <= maxReach then
+        return true, "REAL_HITBOX_THREAT"
+    end
+
+    return false, "NO_THREAT"
+end
+
+function GameSense.GetOptimalTacticalAction(analysis)
+    if not analysis.isValid then return "IDLE" end
+
+    if analysis.isBlocking and CONFIG.ANTI_BLOCK_ENABLED then
+        return "EXECUTE_GUARD_BREAK"
+    end
+
+    if analysis.isGuardBreak and CONFIG.ANTI_GB_EVASION and analysis.isInMeleeReach then
+        return "INTERRUPT_GUARD_BREAK"
+    end
+
+    if analysis.isKnockedDownIFrame and CONFIG.OKIZEME_WAKEUP_GUARD then
+        return "WAIT_WAKEUP_TIMING"
+    end
+
+    if analysis.isWhiffRecovery and CONFIG.WHIFF_PUNISH_ENABLED and analysis.distance <= CONFIG.ATTACK_RANGE then
+        return "WHIFF_PUNISH"
+    end
+
+    if analysis.healthPercent <= 30 and CONFIG.BURST_DPS_LOW_HP and analysis.distance <= CONFIG.ATTACK_RANGE then
+        return "BURST_FINISHER"
+    end
+
+    if analysis.distance <= CONFIG.ATTACK_RANGE then
+        return "STANDARD_COMBO"
+    end
+
+    return "APPROACHING"
+end
+
+-- ==================== PRESETS DE COMBOS COM IA TÁTICA (7 PADRÕES COMPLETOS) ====================
+local EnhancedPatterns = {
+    {ACTION_BUFFERS.PUNCH, 0.07, ACTION_BUFFERS.PUNCH, 0.07, ACTION_BUFFERS.LOW_KICK, 0.08, ACTION_BUFFERS.HIGH_KICK, 0.10},
+    {ACTION_BUFFERS.LOW_KICK, 0.06, ACTION_BUFFERS.PUNCH, 0.07, ACTION_BUFFERS.PUNCH, 0.07, ACTION_BUFFERS.HIGH_KICK, 0.10},
+    {ACTION_BUFFERS.PUNCH, 0.07, ACTION_BUFFERS.PUNCH, 0.07, ACTION_BUFFERS.PUNCH, 0.07, ACTION_BUFFERS.HIGH_KICK, 0.09},
+    {ACTION_BUFFERS.LOW_KICK, 0.08, ACTION_BUFFERS.PUNCH, 0.07, ACTION_BUFFERS.HIGH_KICK, 0.10},
+    {ACTION_BUFFERS.PUNCH, 0.08, ACTION_BUFFERS.PUNCH, 0.08, ACTION_BUFFERS.LOW_KICK, 0.10, ACTION_BUFFERS.HIGH_KICK, 0.12},
+    {ACTION_BUFFERS.LOW_KICK, 0.09, ACTION_BUFFERS.LOW_KICK, 0.09, ACTION_BUFFERS.PUNCH, 0.08, ACTION_BUFFERS.HIGH_KICK, 0.12},
+    {ACTION_BUFFERS.PUNCH, 0.07, ACTION_BUFFERS.LOW_KICK, 0.08, ACTION_BUFFERS.PUNCH, 0.07, ACTION_BUFFERS.HIGH_KICK, 0.11}
+}
+
+local function ExecuteSmartCombo(tacticalAction)
+    if not SubaruState.Enabled or not CONFIG.AUTO_COMBO_ENABLED then return end
+    if SubaruState.IsAttacking or SubaruState.IsBlocking then return end
+    if tick() - SubaruState.LastComboTime < CONFIG.COMBO_DELAY then return end
+    
+    SubaruState.IsAttacking = true
+    SubaruState.LastComboTime = tick()
+    
+    task.spawn(function()
+        local pattern = EnhancedPatterns[1]
+        
+        if tacticalAction == "WHIFF_PUNISH" then
+            pattern = { ACTION_BUFFERS.PUNCH, 0.065, ACTION_BUFFERS.PUNCH, 0.07, ACTION_BUFFERS.HIGH_KICK, 0.09 }
+        elseif tacticalAction == "BURST_FINISHER" then
+            pattern = { ACTION_BUFFERS.PUNCH, 0.065, ACTION_BUFFERS.HIGH_KICK, 0.08 }
+        elseif tacticalAction == "INTERRUPT_GUARD_BREAK" then
+            pattern = { ACTION_BUFFERS.PUNCH, 0.06, ACTION_BUFFERS.PUNCH, 0.065, ACTION_BUFFERS.LOW_KICK, 0.08 }
+        else
+            pattern = EnhancedPatterns[math.random(1, #EnhancedPatterns)]
+        end
+        
+        for i = 1, #pattern, 2 do
+            if not SubaruState.Target or not SubaruState.Target:FindFirstChild("Humanoid") or SubaruState.Target.Humanoid.Health <= 0 then
+                break
+            end
+            
+            if SubaruState.PriorityMode or SubaruState.IsBlocking then break end
+            
+            local liveAnalysis = GameSense.AnalyzeTarget(SubaruState.Target)
+            if SubaruState.AntiBlock and liveAnalysis.isBlocking then
+                CombatActions.ExecuteGuardBreak()
+                task.wait(0.07)
+            end
+            
+            local move = pattern[i]
+            local delayTime = pattern[i+1] or CONFIG.PERFECT_M1_SPEED
+            
+            CombatActions.SendWithFlankBypass(move, SubaruState.Target)
+            task.wait(delayTime)
+        end
+        
+        SubaruState.IsAttacking = false
+    end)
+end
+
+-- ==================== EVENT-DRIVEN AUTO-BLOCK ENGINE ====================
+local MonitoredEntities = {}
+
+local function HookEntityForAutoBlock(entityModel)
+    if not entityModel or entityModel == LocalPlayer.Character then return end
+    if MonitoredEntities[entityModel] then return end
+    
+    local hum = entityModel:FindFirstChildOfClass("Humanoid")
+    local root = entityModel:FindFirstChild("HumanoidRootPart") or entityModel:FindFirstChild("Torso") or entityModel:FindFirstChild("UpperTorso")
+    if not hum or not root then return end
+    
+    MonitoredEntities[entityModel] = true
+    
+    local function OnAnimationTriggered(track)
+        if not SubaruState.Enabled or not CONFIG.AUTO_BLOCK_ENABLED then return end
+        if SubaruState.IsAttacking or SubaruState.IsBlocking or isBlockQueued then return end
+        if (tick() - SubaruState.LastBlockFinishedTime < (CONFIG.GUARD_COOLDOWN or 0.30)) then return end
+        
+        local pChar = LocalPlayer.Character
+        if not pChar or not pChar:FindFirstChild("HumanoidRootPart") then return end
+        
+        local pRoot = pChar.HumanoidRootPart
+        local dist = (pRoot.Position - root.Position).Magnitude
+        local maxReach = CONFIG.MAX_MELEE_REACH or 7.2
+        if dist > maxReach then return end
+        
+        local toUs = (pRoot.Position - root.Position).Unit
+        local lookDot = root.CFrame.LookVector:Dot(toUs)
+        if lookDot < 0.20 then return end
+        
+        local animName = tostring(track.Name):lower()
+        local animId = tostring(track.Animation.AnimationId):lower()
+        local combined = animName .. " " .. animId
+        
+        if combined:find("idle") or combined:find("walk") or combined:find("run") or combined:find("sprint") or combined:find("jump") or combined:find("fall") or combined:find("land") or combined:find("dance") or combined:find("emote") or combined:find("climb") or combined:find("swim") then
+            return
+        end
+        
+        if combined:find("block") or combined:find("guard") or combined:find("parry") or combined:find("down") or combined:find("ragdoll") then
+            return
+        end
+        
+        local isAttack = (combined:find("attack") or combined:find("punch") or combined:find("slash") or combined:find("hit") or combined:find("swing") or combined:find("kick") or combined:find("m1") or combined:find("m2") or combined:find("strike") or combined:find("blade") or combined:find("sword") or combined:find("katana") or combined:find("jab") or combined:find("hook") or combined:find("combo"))
+        
+        if isAttack then
+            local attackKey = animId .. "_" .. tostring(entityModel) .. "_" .. tostring(math.floor(tick() * 1.5))
+            CombatActions.TriggerAutoBlock(attackKey)
+        end
+    end
+    
+    local animator = hum:FindFirstChildOfClass("Animator")
+    if animator then
+        animator.AnimationPlayed:Connect(OnAnimationTriggered)
+    else
+        hum.AnimationPlayed:Connect(OnAnimationTriggered)
+    end
+end
+
+-- ==================== GUARDIÃO DE MOVIMENTO (SEM ACELERAR O JOGO) ====================
+local function SetupWalkSpeedGuardian(char)
+    if not char then return end
+    local hum = char:WaitForChild("Humanoid", 4)
+    if not hum then return end
+    
+    hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if CONFIG.PRESERVE_MOBILITY and CONFIG.SPEED_OVERRIDE_ENABLED and not SubaruState.IsBlocking and hum.MoveDirection.Magnitude > 0.05 then
+            if hum.WalkSpeed < CONFIG.MIN_SAFE_WALKSPEED then
+                hum.WalkSpeed = CONFIG.MIN_SAFE_WALKSPEED
+            end
+        end
+    end)
+end
+
+if LocalPlayer.Character then SetupWalkSpeedGuardian(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(SetupWalkSpeedGuardian)
+
+-- ==================== LOOP PRINCIPAL HEARTBEAT ====================
+RunService.Heartbeat:Connect(function()
+    if not SubaruState.Enabled then return end
+    
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 or not char:FindFirstChild("HumanoidRootPart") then 
+        CombatActions.ReleaseBlock()
+        return 
+    end
+
+    local hum = char.Humanoid
+    
+    -- 1. PRESERVAÇÃO DE LOCOMOÇÃO MOBILE (VELOCIDADE ORIGINAL DO JOGO)
+    if hum.MoveDirection.Magnitude > 0.01 then
+        if CONFIG.SPEED_OVERRIDE_ENABLED then
+            local targetSpeed = CONFIG.MIN_SAFE_WALKSPEED or 16
+            if hum.WalkSpeed < targetSpeed then
+                hum.WalkSpeed = targetSpeed
+            end
+        end
+        pcall(function()
+            hum.PlatformStand = false
+            hum.Sit = false
+        end)
+        
+        if SubaruState.IsBlocking and (tick() - SubaruState.LastBlockTime > 0.04) then
+            CombatActions.ReleaseBlock()
+        end
+    end
+
+    local closestEnemy = nil
+    local shortestDist = CONFIG.DETECTION_RANGE
+    
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local enemyHum = p.Character:FindFirstChild("Humanoid")
+            if enemyHum and enemyHum.Health > 0 then
+                HookEntityForAutoBlock(p.Character)
+                local d = (char.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
+                if d < shortestDist then
+                    shortestDist = d
+                    closestEnemy = p.Character
+                end
+            end
+        end
+    end
+    
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("Model") and obj ~= char and obj:FindFirstChild("HumanoidRootPart") and obj:FindFirstChildOfClass("Humanoid") then
+            local enemyHum = obj:FindFirstChildOfClass("Humanoid")
+            if enemyHum.Health > 0 then
+                HookEntityForAutoBlock(obj)
+                local d = (char.HumanoidRootPart.Position - obj.HumanoidRootPart.Position).Magnitude
+                if d < shortestDist then
+                    shortestDist = d
+                    closestEnemy = obj
+                end
+            end
+        end
+    end
+    
+    SubaruState.Target = closestEnemy
+    
+    if closestEnemy and closestEnemy:FindFirstChild("HumanoidRootPart") then
+        local analysis = GameSense.AnalyzeTarget(closestEnemy)
+        local shouldBlock, blockReason = GameSense.ShouldBlock(analysis)
+        local tacticalAction = GameSense.GetOptimalTacticalAction(analysis)
+        
+        SubaruState.EnemyState = tacticalAction
+        
+        if shouldBlock then
+            CombatActions.TriggerAutoBlock(analysis.attackKey)
+        else
+            if SubaruState.IsBlocking and (tick() - SubaruState.LastBlockTime > 0.05) then
+                CombatActions.ReleaseBlock()
+            end
+            
+            if CONFIG.AUTO_COMBO_ENABLED then
+                if tacticalAction == "EXECUTE_GUARD_BREAK" then
+                    CombatActions.ExecuteGuardBreak()
+                elseif tacticalAction == "WAIT_WAKEUP_TIMING" then
+                    -- Aguarda frame do wake-up
+                elseif tacticalAction == "WHIFF_PUNISH" or tacticalAction == "BURST_FINISHER" or tacticalAction == "INTERRUPT_GUARD_BREAK" or tacticalAction == "STANDARD_COMBO" then
+                    if SubaruState.IsBlocking then
+                        CombatActions.ReleaseBlock()
+                    end
+                    ExecuteSmartCombo(tacticalAction)
+                end
+            end
+        end
+    else
+        if SubaruState.IsBlocking and (tick() - SubaruState.LastBlockTime > 0.05) then
+            CombatActions.ReleaseBlock()
+        end
+        SubaruState.EnemyState = "NEUTRAL"
+    end
+end)
+
+-- ==================== SCARLET 🌙 MOBILE HUB GUI COMPLETO (TOUCH DRAGGABLE & TODOS OS BOTÕES) ====================
+local function CreateScarletMobileHub()
+    local parentGui = (RunService:IsStudio() and LocalPlayer.PlayerGui) or (gethui and gethui()) or CoreGui or LocalPlayer.PlayerGui
+    
+    if parentGui:FindFirstChild("ScarletMobileHub") then
+        parentGui.ScarletMobileHub:Destroy()
+    end
+    
+    local ScarletGui = Instance.new("ScreenGui")
+    ScarletGui.Name = "ScarletMobileHub"
+    ScarletGui.ResetOnSpawn = false
+    ScarletGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ScarletGui.Parent = parentGui
+    
+    -- Botão Flutuante (Floating Draggable Toggle 🌙)
+    local FloatingBtn = Instance.new("ImageButton")
+    FloatingBtn.Name = "FloatingMoonBtn"
+    FloatingBtn.Size = UDim2.new(0, 52, 0, 52)
+    FloatingBtn.Position = UDim2.new(0, 20, 0.5, -26)
+    FloatingBtn.BackgroundColor3 = Color3.fromRGB(24, 16, 32)
+    FloatingBtn.BorderColor3 = Color3.fromRGB(244, 63, 94)
+    FloatingBtn.BorderSizePixel = 2
+    FloatingBtn.AutoButtonColor = true
+    FloatingBtn.Parent = ScarletGui
+    
+    local UICornerBtn = Instance.new("UICorner")
+    UICornerBtn.CornerRadius = UDim.new(1, 0)
+    UICornerBtn.Parent = FloatingBtn
+    
+    local MoonText = Instance.new("TextLabel")
+    MoonText.Size = UDim2.new(1, 0, 1, 0)
+    MoonText.BackgroundTransparency = 1
+    MoonText.Text = "🌙"
+    MoonText.TextSize = 24
+    MoonText.Parent = FloatingBtn
+    
+    -- Torna o botão flutuante arrastável (Draggable no Touch Mobile)
+    local draggingBtn = false
+    local dragStart = nil
+    local startPos = nil
+    
+    FloatingBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingBtn = true
+            dragStart = input.Position
+            startPos = FloatingBtn.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    draggingBtn = false
+                end
+            end)
+        end
+    end)
+    
+    FloatingBtn.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            if draggingBtn and dragStart and startPos then
+                local delta = input.Position - dragStart
+                FloatingBtn.Position = UDim2.new(
+                    startPos.X.Scale,
+                    startPos.X.Offset + delta.X,
+                    startPos.Y.Scale,
+                    startPos.Y.Offset + delta.Y
+                )
+            end
+        end
+    end)
+    
+    -- Main Hub Frame
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Name = "MainFrame"
+    MainFrame.Size = UDim2.new(0, 360, 0, 480)
+    MainFrame.Position = UDim2.new(0.5, -180, 0.5, -240)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(15, 11, 22)
+    MainFrame.BorderColor3 = Color3.fromRGB(244, 63, 94)
+    MainFrame.BorderSizePixel = 1
+    MainFrame.ClipsDescendants = true
+    MainFrame.Parent = ScarletGui
+    
+    local MainCorner = Instance.new("UICorner")
+    MainCorner.CornerRadius = UDim.new(0, 16)
+    MainCorner.Parent = MainFrame
+    
+    -- Torna o MainFrame arrastável
+    local draggingFrame = false
+    local frameDragStart = nil
+    local frameStartPos = nil
+    
+    local Header = Instance.new("Frame")
+    Header.Name = "Header"
+    Header.Size = UDim2.new(1, 0, 0, 44)
+    Header.BackgroundColor3 = Color3.fromRGB(20, 14, 28)
+    Header.BorderSizePixel = 0
+    Header.Parent = MainFrame
+    
+    Header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingFrame = true
+            frameDragStart = input.Position
+            frameStartPos = MainFrame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    draggingFrame = false
+                end
+            end)
+        end
+    end)
+    
+    Header.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            if draggingFrame and frameDragStart and frameStartPos then
+                local delta = input.Position - frameDragStart
+                MainFrame.Position = UDim2.new(
+                    frameStartPos.X.Scale,
+                    frameStartPos.X.Offset + delta.X,
+                    frameStartPos.Y.Scale,
+                    frameStartPos.Y.Offset + delta.Y
+                )
+            end
+        end
+    end)
+    
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Text = "Scarlet 🌙 Universal Combat Hub"
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.TextSize = 14
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.Position = UDim2.new(0, 16, 0, 0)
+    TitleLabel.Size = UDim2.new(0.7, 0, 1, 0)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Parent = Header
+    
+    local CloseBtn = Instance.new("TextButton")
+    CloseBtn.Text = "✕"
+    CloseBtn.Font = Enum.Font.GothamBold
+    CloseBtn.TextSize = 14
+    CloseBtn.TextColor3 = Color3.fromRGB(244, 63, 94)
+    CloseBtn.Position = UDim2.new(1, -36, 0, 8)
+    CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+    CloseBtn.BackgroundTransparency = 1
+    CloseBtn.Parent = Header
+    
+    CloseBtn.MouseButton1Click:Connect(function()
+        MainFrame.Visible = not MainFrame.Visible
+    end)
+    
+    FloatingBtn.MouseButton1Click:Connect(function()
+        MainFrame.Visible = not MainFrame.Visible
+    end)
+    
+    -- Content Frame
+    local ContentFrame = Instance.new("Frame")
+    ContentFrame.Size = UDim2.new(1, -20, 1, -56)
+    ContentFrame.Position = UDim2.new(0, 10, 0, 48)
+    ContentFrame.BackgroundTransparency = 1
+    ContentFrame.Parent = MainFrame
+    
+    local Scroll = Instance.new("ScrollingFrame")
+    Scroll.Size = UDim2.new(1, 0, 1, 0)
+    Scroll.BackgroundTransparency = 1
+    Scroll.ScrollBarThickness = 4
+    Scroll.ScrollBarImageColor3 = Color3.fromRGB(244, 63, 94)
+    Scroll.CanvasSize = UDim2.new(0, 0, 3.2, 0)
+    Scroll.Parent = ContentFrame
+    
+    local ListLayout = Instance.new("UIListLayout")
+    ListLayout.Padding = UDim.new(0, 8)
+    ListLayout.Parent = Scroll
+    
+    -- Botão de Destravar Andar Imediato
+    local FixWalkBtn = Instance.new("TextButton")
+    FixWalkBtn.Size = UDim2.new(1, 0, 0, 36)
+    FixWalkBtn.BackgroundColor3 = Color3.fromRGB(16, 185, 129)
+    FixWalkBtn.Text = "🏃 Destravar Andar & Restaurar Velocidade"
+    FixWalkBtn.Font = Enum.Font.GothamBold
+    FixWalkBtn.TextSize = 12
+    FixWalkBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    FixWalkBtn.Parent = Scroll
+    
+    local FixCorner = Instance.new("UICorner")
+    FixCorner.CornerRadius = UDim.new(0, 10)
+    FixCorner.Parent = FixWalkBtn
+    
+    FixWalkBtn.MouseButton1Click:Connect(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChildOfClass("Humanoid") then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            hum.WalkSpeed = 16
+            hum.PlatformStand = false
+            hum.Sit = false
+            CombatActions.ReleaseBlock()
+            print("[SCARLET] 🏃 Movimento e velocidade destravados com sucesso!")
+        end
+    end)
+
+    -- Botão de Teste Imediato de Auto-Block & Animação
+    local TestBlockBtn = Instance.new("TextButton")
+    TestBlockBtn.Size = UDim2.new(1, 0, 0, 36)
+    TestBlockBtn.BackgroundColor3 = Color3.fromRGB(225, 29, 72)
+    TestBlockBtn.Text = "🛡️ Testar Auto-Block & Animação (1.5s)"
+    TestBlockBtn.Font = Enum.Font.GothamBold
+    TestBlockBtn.TextSize = 12
+    TestBlockBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TestBlockBtn.Parent = Scroll
+    
+    local TestCorner = Instance.new("UICorner")
+    TestCorner.CornerRadius = UDim.new(0, 10)
+    TestCorner.Parent = TestBlockBtn
+    
+    TestBlockBtn.MouseButton1Click:Connect(function()
+        print("[SCARLET TEST] 🛡️ Disparando Auto-Block Multi-Vetor + Animação (1.5s de teste)...")
+        CombatActions.SetBlockState(true)
+        task.wait(1.5)
+        CombatActions.SetBlockState(false)
+        print("[SCARLET TEST] ✅ Teste Concluído!")
+    end)
+    
+    local function CreateToggleCard(parent, titleText, subtitleText, defaultState, callback)
+        local Card = Instance.new("Frame")
+        Card.Size = UDim2.new(1, 0, 0, 54)
+        Card.BackgroundColor3 = Color3.fromRGB(20, 15, 29)
+        Card.BorderColor3 = Color3.fromRGB(244, 63, 94)
+        Card.BorderSizePixel = 1
+        Card.Parent = parent
+        
+        local CardCorner = Instance.new("UICorner")
+        CardCorner.CornerRadius = UDim.new(0, 12)
+        CardCorner.Parent = Card
+        
+        local Title = Instance.new("TextLabel")
+        Title.Text = titleText
+        Title.Font = Enum.Font.GothamMedium
+        Title.TextSize = 12
+        Title.TextColor3 = Color3.fromRGB(240, 240, 240)
+        Title.TextXAlignment = Enum.TextXAlignment.Left
+        Title.Position = UDim2.new(0, 14, 0, 6)
+        Title.Size = UDim2.new(0.65, 0, 0, 20)
+        Title.BackgroundTransparency = 1
+        Title.Parent = Card
+
+        local Sub = Instance.new("TextLabel")
+        Sub.Text = subtitleText
+        Sub.Font = Enum.Font.Gotham
+        Sub.TextSize = 10
+        Sub.TextColor3 = Color3.fromRGB(160, 150, 175)
+        Sub.TextXAlignment = Enum.TextXAlignment.Left
+        Sub.Position = UDim2.new(0, 14, 0, 26)
+        Sub.Size = UDim2.new(0.65, 0, 0, 20)
+        Sub.BackgroundTransparency = 1
+        Sub.Parent = Card
+        
+        local Switch = Instance.new("TextButton")
+        Switch.Text = ""
+        Switch.Size = UDim2.new(0, 50, 0, 26)
+        Switch.Position = UDim2.new(1, -64, 0.5, -13)
+        Switch.BackgroundColor3 = defaultState and Color3.fromRGB(225, 29, 72) or Color3.fromRGB(40, 32, 50)
+        Switch.Parent = Card
+        
+        local SwitchCorner = Instance.new("UICorner")
+        SwitchCorner.CornerRadius = UDim.new(1, 0)
+        SwitchCorner.Parent = Switch
+        
+        local Knob = Instance.new("Frame")
+        Knob.Size = UDim2.new(0, 20, 0, 20)
+        Knob.Position = defaultState and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 3, 0.5, -10)
+        Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        Knob.Parent = Switch
+        
+        local KnobCorner = Instance.new("UICorner")
+        KnobCorner.CornerRadius = UDim.new(1, 0)
+        KnobCorner.Parent = Knob
+        
+        local isState = defaultState
+        Switch.MouseButton1Click:Connect(function()
+            isState = not isState
+            Switch.BackgroundColor3 = isState and Color3.fromRGB(225, 29, 72) or Color3.fromRGB(40, 32, 50)
+            Knob:TweenPosition(isState and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 3, 0.5, -10), "Out", "Quad", 0.15, true)
+            callback(isState)
+        end)
+        
+        return Card
+    end
+
+    -- TODOS OS BOTÕES E TOGGLES DO SEU HUB ORIGINAL
+    CreateToggleCard(Scroll, "🚶 Velocidade 100% Natural", "Sem aceleração (mantém a velocidade nativa do jogo)", not CONFIG.SPEED_OVERRIDE_ENABLED, function(val)
+        CONFIG.SPEED_OVERRIDE_ENABLED = not val
+        print("[SCARLET SPEED] Velocidade natural do jogo: " .. tostring(val))
+    end)
+
+    CreateToggleCard(Scroll, "⚔️ Auto-Combo Automático", "Ataca automaticamente oponentes no alcance", CONFIG.AUTO_COMBO_ENABLED, function(val)
+        CONFIG.AUTO_COMBO_ENABLED = val
+        print("[SCARLET] Auto-Combo alterado para: " .. tostring(val))
+    end)
+
+    CreateToggleCard(Scroll, "🛡️ Auto-Block Consciente", "Defesa sólida sem spam (apenas em golpes reais)", CONFIG.AUTO_BLOCK_ENABLED, function(val)
+        CONFIG.AUTO_BLOCK_ENABLED = val
+        print("[SCARLET] Auto-Block alterado para: " .. tostring(val))
+    end)
+
+    CreateToggleCard(Scroll, "🏃 Preservar Mobilidade (Andar)", "Libera velocidade instantânea ao andar/correr", CONFIG.PRESERVE_MOBILITY, function(val)
+        CONFIG.PRESERVE_MOBILITY = val
+        print("[SCARLET MOBILITY] Preservação de movimento alterada para: " .. tostring(val))
+    end)
+
+    CreateToggleCard(Scroll, "🎭 Animação de Guarda Visível", "Executa a animação oficial de defesa sem travar", CONFIG.FORCE_VISIBLE_ANIMATION, function(val)
+        CONFIG.FORCE_VISIBLE_ANIMATION = val
+        print("[SCARLET ANIM] Animação de guarda alterada para: " .. tostring(val))
+    end)
+
+    CreateToggleCard(Scroll, "🗡️ Furar Bloqueio (Shield Piercer)", "Inimigo toma dano mesmo usando block", CONFIG.SHIELD_PIERCER, function(val)
+        CONFIG.SHIELD_PIERCER = val
+        print("[SCARLET] Shield Piercer alterado para: " .. tostring(val))
+    end)
+
+    CreateToggleCard(Scroll, "⚡ Flash Parry & Sai Rápido (35ms)", "Bloqueia o poke e solta na hora para esquivar", CONFIG.FLASH_PARRY_DISENGAGE, function(val)
+        CONFIG.FLASH_PARRY_DISENGAGE = val
+        print("[SCARLET] Flash Parry Disengage alterado para: " .. tostring(val))
+    end)
+
+    CreateToggleCard(Scroll, "⚡ Auto-Parry Rápido (45ms)", "Parry acelerado com animação 2.5x instantânea", CONFIG.LIGHTNING_PARRY, function(val)
+        CONFIG.LIGHTNING_PARRY = val
+        print("[SCARLET] Lightning Parry alterado para: " .. tostring(val))
+    end)
+
+    CreateToggleCard(Scroll, "🛡️ Proteção Anti-Kick", "Rate-limit e proteção anti-desconexão", CONFIG.ANTI_KICK_SAFETY, function(val)
+        CONFIG.ANTI_KICK_SAFETY = val
+    end)
+
+    CreateToggleCard(Scroll, "🎯 Alcance Real Melee (≤7.2st)", "Só bloqueia se o inimigo realmente alcançar", CONFIG.STRICT_MELEE_RANGE, function(val)
+        CONFIG.STRICT_MELEE_RANGE = val
+    end)
+
+    CreateToggleCard(Scroll, "🎭 Disfarçar Auto-Block (Legit)", "Delay humano (80ms) + Guarda realista", CONFIG.HUMANIZE_BLOCK, function(val)
+        CONFIG.HUMANIZE_BLOCK = val
+        print("[SCARLET LEGIT] Disfarce de Auto-Block alterado para: " .. tostring(val))
+    end)
+
+    CreateToggleCard(Scroll, "Anti-GuardBreak Evasion", "Não defende contra quebra de guarda (ataca)", CONFIG.ANTI_GB_EVASION, function(val)
+        CONFIG.ANTI_GB_EVASION = val
+    end)
+    
+    CreateToggleCard(Scroll, "Anti-Block (Quebra Escudo)", "Destrói bloqueio inimigo instantaneamente", SubaruState.AntiBlock, function(val)
+        SubaruState.AntiBlock = val
+    end)
+
+    CreateToggleCard(Scroll, "Whiff Punisher Rush", "Pune nos recovery frames de erro inimigo", CONFIG.WHIFF_PUNISH_ENABLED, function(val)
+        CONFIG.WHIFF_PUNISH_ENABLED = val
+    end)
+
+    CreateToggleCard(Scroll, "Okizeme Wake-Up Guard", "Não gasta golpe em i-frames de knockdown", CONFIG.OKIZEME_WAKEUP_GUARD, function(val)
+        CONFIG.OKIZEME_WAKEUP_GUARD = val
+    end)
+    
+    print("[SCARLET 🌙] Interface Mobile Hub Completa carregada! Toque ou arraste o botão 🌙.")
+end
+
+task.spawn(function()
+    pcall(CreateScarletMobileHub)
+end)
+
+-- Tecla V no Teclado (PC)
+if not IsMobileDevice then
+    UserInputService.InputBegan:Connect(function(input, gpe)
+        if gpe then return end
+        if input.KeyCode == Enum.KeyCode[CONFIG.TOGGLE_KEY] then
+            SubaruState.Enabled = not SubaruState.Enabled
+            print("[SCARLET] Estado do Hub alternado para: " .. tostring(SubaruState.Enabled))
+        end
+    end)
+end
+
+print([[
+    ╔══════════════════════════════════════════════════════════════════════════════╗
+    ║  [SCARLET 🌙] PROTOCOLO V6.0 COMPLETO CARREGADO COM SUCESSO!                 ║
+    ║  • Interface Hub: Toque ou arraste o botão 🌙 na tela do celular             ║
+    ║  • Auto-Combo + Rotações: ATIVO (Funciona perfeitamente se movimentando)     ║
+    ║  • Animação de Guarda: ATIVA (Braços defendem, pernas continuam correndo)    ║
+    ║  • Shield Piercer & Anti-Block: ATIVO                                        ║
+    ║  • Preservação de Andar no Mobile: 100% DESTRAVADA                           ║
+    ╚══════════════════════════════════════════════════════════════════════════════╝
+]])
+
+return SubaruState
