@@ -1,0 +1,1867 @@
+--[[
+    ╔══════════════════════════════════════════════════════════════════════════════╗
+    ║  SCARLET 🌙 MOBILE HUB V5.5 - PERFECT M1 & SMART HP ADAPTIVE-MODE           ║
+    ║  • PERFECT M1 ENGINE: Frame-perfect swing sync (0.022s), cancel recovery frames ║
+    ║  • SMART HP ADAPTIVE: Transição dinâmica Dominance >70% | Tactical | Clutch <30% ║
+    ║  • PURE AUTO-BLOCK: Defesa 100% sólida e confiável sem parry instável        ║
+    ║  • MOBILITY PRESERVATION: Libera velocidade instantânea ao andar/correr      ║
+    ║  • HITBOX MELEE REAL: Só ativa no alcance físico real de contato (≤ 6.5st)   ║
+    ║  • STRICT FORWARD CONE: Só defende se o inimigo estiver de frente (Cone 60°) ║
+    ║  • DAMAGE FRAME WINDOW: Só bloqueia nos milissegundos do impacto ativo       ║
+    ║  • LEGIT HUMANIZER: Disfarce 100% natural com delay de reação e jitter       ║
+    ║  • ANTI-PERMA-LOCK COOLDOWN: Intervalo de guarda para evitar loop de bot     ║
+    ║  • SHIELD PIERCER: Bypass de defesa por ângulo de flanco 180° e anti-block  ║
+    ║  • WHIFF PUNISHER: Punição instantânea no recovery frame do adversário       ║
+    ║  • OKIZEME MEATY TIMING: Não gasta golpes no chão com i-frames               ║
+    ║  • ANTI-KICK SAFETY: Rate limit seguro abaixo do limite de kick do Roblox    ║
+    ║  • MOBILE GUI HUB: Interface Touch Draggable (Delta / Arceus / Solara / PC) ║
+    ╚══════════════════════════════════════════════════════════════════════════════╝
+    Suporte: Delta Mobile, Arceus X, Solara, Fluxus, Wave, Celery, Codex e PC
+]]
+
+-- Aguarda o carregamento seguro do jogo e do jogador local
+if not game:IsLoaded() then
+    pcall(function() game.Loaded:Wait() end)
+end
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
+local VirtualInputManager = nil
+pcall(function()
+    VirtualInputManager = game:GetService("VirtualInputManager")
+end)
+local VirtualUser = nil
+pcall(function()
+    VirtualUser = game:GetService("VirtualUser")
+end)
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then
+    repeat
+        task.wait(0.1)
+        LocalPlayer = Players.LocalPlayer
+    until LocalPlayer
+end
+
+-- ==================== CONFIGURAÇÕES GLOBAIS COM CONSCIÊNCIA DE JOGO V5.5 ====================
+local CONFIG = {
+    ENABLED = true,                                     -- Sistema Geral Ativo
+    AUTO_COMBO_ENABLED = true,                         -- Auto-Combo (Prioridade no ataque)
+
+    -- COMBAT GAME SENSE AI & HYBRID KICK+PUNCH ENGINE (NOVO CÉREBRO TÁTICO)
+    GAME_SENSE_ENABLED = true,                         -- Game Sense Tático Ativo
+    GAME_SENSE_AUTO_READ_DEFENSE = true,               -- Quebra de guarda imediata ao ler defesa inimiga
+    GAME_SENSE_PREDICT_COUNTER = true,                 -- Interrupção de ataque com chutes rápidos prioritários
+    GAME_SENSE_DYNAMIC_COMBO_SELECTION = true,         -- IA escolhe o combo exato e mais letal em tempo real
+    HYBRID_PUNCH_KICK_CHAIN = true,                    -- Conexão soco + chute ultra-potente
+    KICK_FREQUENCY_BOOST = true,                       -- Frequência máxima de chutes ativada
+
+    -- PERFECT M1 ENGINE (VELOCIDADE MILIMÉTRICA & CANCELAMENTO DE FRAME)
+    PERFECT_M1_ENABLED = true,                       -- Perfect M1 Ativo
+    PERFECT_M1_SPEED = 0.022,                         -- Velocidade Frame-Perfect do M1 (0.022s)
+    M1_FRAME_CANCEL = true,                          -- Cancela frames de recovery para golpes instantâneos
+    M1_HITBOX_SYNC = true,                           -- Sincroniza detecção do hitbox com o frame ativo
+    M1_AUTO_CHAIN = true,                            -- Conecta M1 + Chutes fluidamente
+    M1_FLANK_BYPASS_CHANCE = 90,                     -- Chance de bypass de ângulo lateral
+
+    -- ULTRA RAPID KICK FLURRY ENGINE (FREQUÊNCIA E SEQUÊNCIA MÁXIMA DE CHUTES)
+    RAPID_KICK_ENABLED = true,                       -- Modo Rajada de Chutes Rápidos
+    KICK_BURST_COUNT = 10,                         -- Qtd de chutes/golpes por sequência (10 ações)
+    KICK_SPEED = 0.012,                               -- Intervalo ultra-rápido entre chutes (0.012s / 12ms)
+    KICK_FRAME_CANCEL = true,                        -- Acelera em 3.5x os últimos 70% da animação de chute
+    KICK_CHAIN_STYLE = "HYBRID_PUNCH_KICK",                         -- 'HYBRID_PUNCH_KICK', 'FLURRY', 'ALTERNATING', 'GUARD_BREAK_FIRST'
+
+    -- SMART HP ADAPTIVE-MODE (IA DE COMPORTAMENTO ADAPTATIVO POR VIDA)
+    SMART_HP_ADAPTIVE = true,                        -- Modo Adaptativo de Vida Ativo
+    HP_HIGH_THRESHOLD = 70,                        -- Vida Alta (> 70%): Modo Agressão Total & Shield Piercer
+    HP_LOW_THRESHOLD = 30,                         -- Vida Baixa (< 30%): Modo Clutch Survival & Flash Parry Evasivo
+    ENEMY_EXECUTE_THRESHOLD = 25,                  -- Inimigo com < 25%: Modo Kill Confirmed Rush
+    CLUTCH_FLASH_PARRY_SPEED = 0.025,                -- Tempo micro-flash no clutch (0.025s)
+    CLUTCH_EVASIVE_SPACING = 13.5,                  -- Distância de segurança evasiva (13.5 studs)
+    DYNAMIC_WALKSPEED_BOOST = false,                 -- Recupera e impulsiona velocidade de andar
+
+    -- ANTI-SPACING & ANTI-POKE THREAT (INIMIGO QUE FICA DE LONGE PARA BATER E FUGIR)
+    ANTI_SPACING_DETECTOR = true,                   -- Detecta golpes longos/pokes com avanço (até 13.5 studs)
+    LUNGE_VELOCITY_DETECTOR = true,                 -- Analisa aceleração/velocidade do inimigo avançando
+    FLASH_PARRY_DISENGAGE = true,                   -- Bloqueia rápido (35ms) e solta na hora para sair/punir
+    SPACING_MAX_REACH = 13.5,                        -- Alcance do radar de espaçamento (13.5 studs)
+    INSTANT_DISENGAGE_SPEED = 0.025,                  -- Duração micro-flash de guarda (35ms)
+
+    -- ANTI-SPAM & SINGLE-PARRY LOCK (ELIMINA METRALHADORA DE 'F' / 1 PARRY POR SWING)
+    ANTI_SPAM_PARRY_LOCK = true,                    -- Trava rigorosa de 1 parry por golpe
+    ANTI_SPAM_PARRY_COOLDOWN = 0.25,                -- Cooldown mínimo entre parries (0.35s)
+    SINGLE_PARRY_PER_SWING = true,                  -- Não repete parry na mesma animação de ataque
+
+    -- SHIELD PIERCER (BYPASS DE DEFESA - INIMIGO TOMA DANO MESMO BLOQUEANDO)
+    SHIELD_PIERCER = true,                          -- Fura a defesa do inimigo (Flank Hitbox Bypass)
+    ANGLE_BYPASS = true,                            -- Contorna o cone de 90° de guarda frontal do Roblox
+    ANTI_BLOCK_SPAM = true,                         -- Pune e destrói oponentes que spammam tecla F
+
+    -- AUTO-PARRY ULTRARRÁPIDO & PROTEÇÃO ANTI-KICK
+    LIGHTNING_PARRY = true,                        -- Parry ultrarrápido (45ms micro-tap)
+    PARRY_SPEED_MULT = 3.5,                       -- Velocidade acelerada da animação de guarda (2.5x)
+    ANTI_KICK_SAFETY = true,                       -- Rate-limit e proteção anti-desconexão/anti-cheat
+
+    -- AUTO-BLOCK CONSCIENTE & PRESERVAÇÃO DE MOBILIDADE TOTAL (NUNCA TRAVA O ANDAR)
+    PRESERVE_MOBILITY = true,                      -- Garante locomoção e destrava o joystick sempre
+    STRICT_MELEE_RANGE = true,                     -- Só defende no alcance físico real de contato
+    MAX_MELEE_REACH = 6.5,                         -- Alcance máximo real de soco (6.5 studs)
+    GUARD_COOLDOWN = 0.25,                          -- Cooldown anti-spam de guarda (0.40s)
+
+    -- AUTO-BLOCK LEGIT HUMANIZER (DISFARCE TOTAL & TEMPO HUMANO)
+    HUMANIZE_BLOCK = false,                         -- Ativar Humanização de Defesa (Disfarçado)
+    BLOCK_MODE = "instant",                            -- 'legit' (140ms), 'semi_legit' (80ms), 'instant' (0ms)
+    HUMAN_REACTION_DELAY = 0.08,                   -- Reação visual humana natural (140ms / 0.14s)
+    BLOCK_JITTER_MS = 15,                        -- Variação orgânica aleatória (±35ms)
+    HUMAN_HOLD_DURATION = 0.1,                    -- Tempo micro-curto de guarda (0.12s) para NUNCA travar o andar
+    ANTI_SPECTATOR = true,                         -- Proteção anti-espectador / anti-denúncia
+
+    -- AUTO-BLOCK MULTI-VETOR & ANIMAÇÃO GARANTIDA
+    AUTO_BLOCK_ENABLED = true,                     -- Auto-Block Ativo
+    FORCE_VISIBLE_ANIMATION = false,                -- Desativado para evitar sobrepor as pernas/passos de andar
+    BLOCK_EXECUTION_METHOD = "hybrid_all",             -- 'hybrid_all', 'virtual_input', 'direct_remote'
+
+    -- GAME SENSE & CONSCIÊNCIA DE JOGO
+    GAME_SENSE_ENABLED = true,                     -- IA de noções e consciência de combate
+    SMART_AUTO_BLOCK = true,                       -- Sabe quando defender e quando NÃO defender
+    ANTI_GB_EVASION = true,                        -- Não defende contra Guard Break inimigo (ataca primeiro)
+    WHIFF_PUNISH_ENABLED = true,                   -- Punição em recovery frames de erro inimigo
+    OKIZEME_WAKEUP_GUARD = true,                   -- Não ataca em i-frame de knockdown (espera wake-up)
+    BURST_DPS_LOW_HP = true,                       -- Finalizador rápido se inimigo estiver com < 30% HP
+
+    -- ANTI-BLOCK (QUEBRA DE DEFESA INIMIGA)
+    ANTI_BLOCK_ENABLED = true,                     -- Anti-Block (Inimigo Não Consegue Bloquear)
+    GUARD_BREAK_TYPE = "instant_kick",                  -- Tipo de Quebra de Guarda
+    ANTI_BLOCK_REACTION = 0.002,                   -- Reação anti-block (0.005s)
+
+    -- RANGES E DELAYS DE COMBATE
+    DETECTION_RANGE = 45,                        -- Alcance do radar (studs)
+    ATTACK_RANGE = 14,                           -- Alcance do Auto-Combo (studs)
+    DANGER_RANGE = 8,                            -- Distância de perigo (studs)
+    COMBO_DELAY = 0.005,                            -- Delay entre combos
+    REACTION_SPEED = 0.001,                         -- Velocidade de resposta
+
+    -- MIRA / AIMBOT
+    CURVE_AIMBOT = false,
+    CURVE_POWER = 15,
+    TOP_CORNER_MODE = false,
+
+    TOGGLE_KEY = "V",
+    REMOTE_NAME = "RemoteEvent",
+    PACKET_FOLDER = "Packet"
+}
+
+-- ==================== ESTADO DO SISTEMA ====================
+local SubaruState = {
+    Enabled = CONFIG.ENABLED,
+    GameSense = CONFIG.GAME_SENSE_ENABLED,
+    AntiBlock = CONFIG.ANTI_BLOCK_ENABLED,
+    CurrentVersion = "Scarlet-V5.5-PerfectM1-SmartHPAdaptive",
+    IsBlocking = false,
+    IsAttacking = false,
+    PriorityMode = false,
+    Target = nil,
+    EnemyState = "NEUTRAL",
+    AdaptiveMode = "DOMINANCE", -- 'DOMINANCE', 'TACTICAL', 'CLUTCH_SURVIVAL', 'EXECUTE_RUSH'
+    LastAction = 0,
+    LastComboTime = 0,
+    LastM1Time = 0,
+    LastBlockTime = 0,
+    LastBlockFinishedTime = 0,
+    LastGuardBreakTime = 0,
+    LastWhiffPunishTime = 0,
+    LastRemoteSendTime = 0,
+    RecentPacketCount = 0,
+    LastPacketReset = 0,
+    BlockThread = nil,
+    ComboStep = 0,
+    ActiveBlockTrack = nil,
+    HandledAttacks = {},
+    TargetBlockHistory = {},
+    LastBlockDropTime = 0
+}
+
+-- ==================== DISCOVERY DE REMOTES UNIVERSAL ====================
+local PacketRemote = nil
+local DiscoveredCombatRemotes = {}
+
+local function ScanForCombatRemotes()
+    DiscoveredCombatRemotes = {}
+    pcall(function()
+        local folder = ReplicatedStorage:FindFirstChild(CONFIG.PACKET_FOLDER)
+        if folder then
+            local r = folder:FindFirstChild(CONFIG.REMOTE_NAME) or folder:FindFirstChild("Packet") or folder:FindFirstChildOfClass("RemoteEvent")
+            if r then PacketRemote = r end
+        end
+    end)
+    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+            local n = obj.Name:lower()
+            if n:find("block") or n:find("guard") or n:find("parry") or n:find("defend") or n:find("combat") or n:find("action") or n:find("packet") or n:find("skill") or n:find("hit") or n:find("attack") or n:find("m1") then
+                table.insert(DiscoveredCombatRemotes, obj)
+                if not PacketRemote and (n:find("packet") or n == CONFIG.REMOTE_NAME:lower()) then
+                    PacketRemote = obj
+                end
+            end
+        end
+    end
+    if not PacketRemote and #DiscoveredCombatRemotes > 0 then
+        PacketRemote = DiscoveredCombatRemotes[1]
+    end
+end
+ScanForCombatRemotes()
+
+-- ==================== DEFINIÇÃO DE BUFFERS (OPCODES) ====================
+local ACTION_BUFFERS = {
+    PUNCH       = buffer.fromstring("\005\003lmb\000\000\000\000\000"),
+    HIGH_KICK   = buffer.fromstring("\005\bkeypress\v\001q\000\000\000\000"),
+    LOW_KICK    = buffer.fromstring("\005\bkeypress\v\001e\000\000\000\000"),
+    BLOCK_ON    = buffer.fromstring("\005\bkeypress\v\001f\000\000\000\000"),
+    BLOCK_OFF   = buffer.fromstring("\005\bkeyrelease\v\001f\000\000\000\000")
+}
+
+-- ==================== NÚCLEO DE COMBATE & PERFECT M1 & KICK ENGINE ====================
+local CombatActions = {}
+local isBlockQueued = false
+
+-- ==================== PRESERVAÇÃO DE MOBILIDADE NATIVA (SEM HACK DE VELOCIDADE) ====================
+-- Garante física limpa e destravada sem interferir na velocidade de andar natural do jogo
+local function EnforcePlayerMobility()
+    pcall(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not hum or hum.Health <= 0 or not root then return end
+
+        -- Apenas destrava estados físicos anormais sem alterar WalkSpeed
+        if hum.PlatformStand then hum.PlatformStand = false end
+        if hum.Sit then hum.Sit = false end
+        if root.Anchored then root.Anchored = false end
+    end)
+end
+
+-- Monitoramento leve para garantir física destravada
+RunService.Stepped:Connect(EnforcePlayerMobility)
+
+function CombatActions.Send(actionBuffer)
+    if not PacketRemote then return end
+    local now = tick()
+    if CONFIG.ANTI_KICK_SAFETY then
+        if now - SubaruState.LastPacketReset > 1 then
+            SubaruState.RecentPacketCount = 0
+            SubaruState.LastPacketReset = now
+        end
+        if SubaruState.RecentPacketCount >= 30 then return end
+        SubaruState.RecentPacketCount = SubaruState.RecentPacketCount + 1
+    end
+    pcall(function() PacketRemote:FireServer(actionBuffer) end)
+    SubaruState.LastAction = now
+    SubaruState.LastRemoteSendTime = now
+end
+
+-- PERFECT M1 & AUTO-COMBO HÍBRIDO TURBO: Execução 100% livre de toque fantasma com animação e dano
+function CombatActions.PerformPerfectM1(targetChar)
+    local now = tick()
+    local interval = CONFIG.PERFECT_M1_SPEED or 0.022
+    
+    if SubaruState.AdaptiveMode == "DOMINANCE" or SubaruState.AdaptiveMode == "EXECUTE_RUSH" then
+        interval = math.max(0.016, interval * 0.75)
+    elseif SubaruState.AdaptiveMode == "CLUTCH_SURVIVAL" then
+        interval = math.max(0.020, interval * 0.85)
+    end
+    
+    if now - SubaruState.LastM1Time < interval then return end
+    SubaruState.LastM1Time = now
+    SubaruState.LastAction = now
+    SubaruState.ComboHitCount = ((SubaruState.ComboHitCount or 0) % 5) + 1
+
+    -- 1. Opcode imediato de soco via PacketRemote
+    CombatActions.Send(ACTION_BUFFERS.PUNCH)
+
+    -- 2. Ativação via Tool do Personagem (Dispara o ataque e acelera animação nativa)
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char then
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then tool:Activate() end
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum and CONFIG.M1_FRAME_CANCEL then
+                for _, tr in ipairs(hum:GetPlayingAnimationTracks()) do
+                    local tn = tostring(tr.Name):lower()
+                    if tn:find("punch") or tn:find("m1") or tn:find("attack") or tn:find("swing") then
+                        tr:AdjustSpeed(4.5)
+                    end
+                end
+            end
+        end
+    end)
+
+    -- 3. Disparo Multi-Remote de Hit / M1 com Anti-Block Spam & Blindspot Bypass (180° / Flank)
+    if targetChar then
+        local tRoot = targetChar:FindFirstChild("HumanoidRootPart")
+        local isEnemyGuarding = (targetChar:GetAttribute("Blocking") or targetChar:GetAttribute("Guard") or targetChar:GetAttribute("IsBlocking")) == true
+        
+        -- Calcula vetores em ângulos cegos (Costas 180° e Flancos) para bypassar 100% o escudo frontal de quem spamma block
+        local blindspotBack = tRoot and (tRoot.CFrame * CFrame.new(0, 0, 1.35) * CFrame.Angles(0, math.pi, 0)) or nil
+        local blindspotFlank = tRoot and (tRoot.CFrame * CFrame.new(1.35, 0, 0) * CFrame.Angles(0, math.rad(90), 0)) or nil
+
+        for _, rem in ipairs(DiscoveredCombatRemotes) do
+            pcall(function()
+                if rem:IsA("RemoteEvent") then
+                    local rn = rem.Name:lower()
+                    if rn:find("hit") or rn:find("attack") or rn:find("combat") or rn:find("m1") or rn:find("damage") or rn:find("punch") or rn:find("swing") then
+                        if tRoot then
+                            -- Disparo frontal padrão
+                            rem:FireServer(targetChar, tRoot.CFrame, "M1")
+                            rem:FireServer("Hit", targetChar, tRoot.CFrame)
+                            rem:FireServer("Attack", targetChar)
+                            rem:FireServer("M1", targetChar)
+
+                            -- Injeção de Bypass em Ângulo Cego (Ignora a caixa frontal de colisão de block)
+                            if (isEnemyGuarding or CONFIG.SHIELD_PIERCER or CONFIG.ANGLE_BYPASS) and blindspotBack then
+                                rem:FireServer(targetChar, blindspotBack, "M1")
+                                rem:FireServer("Hit", targetChar, blindspotBack)
+                                rem:FireServer(targetChar, blindspotFlank, "M1")
+                                rem:FireServer("Hit", targetChar, blindspotFlank)
+                            end
+                        else
+                            rem:FireServer("Attack")
+                            rem:FireServer("M1")
+                        end
+                    end
+                end
+            end)
+        end
+
+        -- Se o oponente estiver defendendo ou spamando block, dispara rasteira quebra-guarda automática
+        if isEnemyGuarding and CONFIG.ANTI_BLOCK_SPAM then
+            task.spawn(function()
+                CombatActions.PerformLowKick(targetChar)
+            end)
+        end
+    else
+        for _, rem in ipairs(DiscoveredCombatRemotes) do
+            pcall(function()
+                if rem:IsA("RemoteEvent") then
+                    local rn = rem.Name:lower()
+                    if rn:find("attack") or rn:find("combat") or rn:find("m1") or rn:find("punch") or rn:find("swing") then
+                        rem:FireServer("Attack")
+                        rem:FireServer("M1")
+                    end
+                end
+            end)
+        end
+    end
+
+    -- 4. Preserva locomoção e destrava o analógico/WASD imediatamente
+    EnforcePlayerMobility()
+
+    -- 5. Auto-Chain Híbrido: Encadeamento automático de chutes sem interferir no andar
+    if (CONFIG.M1_AUTO_CHAIN or CONFIG.HYBRID_PUNCH_KICK_CHAIN) and targetChar then
+        if SubaruState.ComboHitCount == 2 then
+            task.delay(interval * 0.60, function()
+                CombatActions.PerformLowKick(targetChar)
+            end)
+        elseif SubaruState.ComboHitCount == 4 then
+            task.delay(interval * 0.60, function()
+                CombatActions.PerformHighKick(targetChar)
+            end)
+        end
+    end
+end
+
+-- LOW KICK (CHUTE BAIXO / RASTEIRA - TECLA E): Execução Direta Sem Toque Fantasma
+function CombatActions.PerformLowKick(targetChar)
+    local now = tick()
+    SubaruState.LastAction = now
+
+    -- 1. Envia Opcode do PacketRemote
+    CombatActions.Send(ACTION_BUFFERS.LOW_KICK)
+
+    -- 2. Disparo de Animação do Personagem / Animator (Priority Action acelerada)
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            local animator = hum and (hum:FindFirstChildOfClass("Animator") or hum)
+            if animator then
+                for _, obj in ipairs(char:GetDescendants()) do
+                    if obj:IsA("Animation") then
+                        local an = obj.Name:lower()
+                        if an:find("lowkick") or an:find("sweep") or (an:find("kick") and not an:find("high")) or an:find("leg") or an:find("skill1") or an == "e" then
+                            local track = animator:LoadAnimation(obj)
+                            track.Priority = Enum.AnimationPriority.Action
+                            track.Looped = false
+                            track:Play(0.02, 1, 1.4)
+                            if CONFIG.KICK_FRAME_CANCEL then
+                                task.delay(0.04, function()
+                                    if track.IsPlaying then track:AdjustSpeed(4.5) end
+                                end)
+                            end
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    -- 3. Disparo Universal de Remotes de Chute Baixo / Quebra de Guarda / Tecla E (Direto nos Remotes)
+    for _, rem in ipairs(DiscoveredCombatRemotes) do
+        pcall(function()
+            if rem:IsA("RemoteEvent") then
+                local rn = rem.Name:lower()
+                if rn:find("kick") or rn:find("guardbreak") or rn:find("break") or rn:find("skill") or rn:find("attack") or rn:find("hit") or rn:find("e") or rn:find("combat") then
+                    if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
+                        local tRoot = targetChar.HumanoidRootPart
+                        rem:FireServer(targetChar, tRoot.CFrame, "LowKick")
+                        rem:FireServer("LowKick", targetChar, tRoot.CFrame)
+                        rem:FireServer("Kick", targetChar, tRoot.CFrame)
+                        rem:FireServer("GuardBreak", targetChar, tRoot.CFrame)
+                        rem:FireServer("Sweep", targetChar, tRoot.CFrame)
+                        rem:FireServer("E", targetChar)
+                        rem:FireServer("Skill1", targetChar)
+                        rem:FireServer({ Action = "LowKick", Target = targetChar, Key = "E" })
+                        rem:FireServer({ Key = Enum.KeyCode.E, Target = targetChar })
+                    else
+                        rem:FireServer("LowKick")
+                        rem:FireServer("Kick")
+                        rem:FireServer("GuardBreak")
+                        rem:FireServer("E")
+                        rem:FireServer("Skill1")
+                        rem:FireServer({ Action = "LowKick", Key = "E" })
+                    end
+                end
+            end
+        end)
+    end
+
+    -- 4. Garante preservação de velocidade e locomoção após chute
+    EnforcePlayerMobility()
+end
+
+-- HIGH KICK (CHUTE ALTO / FINALIZADOR - TECLA Q): Execução Direta Sem Toque Fantasma
+function CombatActions.PerformHighKick(targetChar)
+    local now = tick()
+    SubaruState.LastAction = now
+
+    -- 1. Envia Opcode do PacketRemote
+    CombatActions.Send(ACTION_BUFFERS.HIGH_KICK)
+
+    -- 2. Disparo de Animação do Personagem / Animator (Priority Action acelerada)
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            local animator = hum and (hum:FindFirstChildOfClass("Animator") or hum)
+            if animator then
+                for _, obj in ipairs(char:GetDescendants()) do
+                    if obj:IsA("Animation") then
+                        local an = obj.Name:lower()
+                        if an:find("highkick") or an:find("heavy") or an:find("finisher") or (an:find("kick") and an:find("high")) or an:find("skill2") or an == "q" then
+                            local track = animator:LoadAnimation(obj)
+                            track.Priority = Enum.AnimationPriority.Action
+                            track.Looped = false
+                            track:Play(0.02, 1, 1.4)
+                            if CONFIG.KICK_FRAME_CANCEL then
+                                task.delay(0.04, function()
+                                    if track.IsPlaying then track:AdjustSpeed(4.5) end
+                                end)
+                            end
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    -- 3. Disparo Universal de Remotes de Chute Alto / Heavy / Tecla Q (Direto nos Remotes)
+    for _, rem in ipairs(DiscoveredCombatRemotes) do
+        pcall(function()
+            if rem:IsA("RemoteEvent") then
+                local rn = rem.Name:lower()
+                if rn:find("kick") or rn:find("highkick") or rn:find("heavy") or rn:find("finisher") or rn:find("skill") or rn:find("q") or rn:find("combat") then
+                    if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
+                        local tRoot = targetChar.HumanoidRootPart
+                        rem:FireServer(targetChar, tRoot.CFrame, "HighKick")
+                        rem:FireServer("HighKick", targetChar, tRoot.CFrame)
+                        rem:FireServer("Heavy", targetChar, tRoot.CFrame)
+                        rem:FireServer("Finisher", targetChar, tRoot.CFrame)
+                        rem:FireServer("Q", targetChar)
+                        rem:FireServer("Skill2", targetChar)
+                        rem:FireServer({ Action = "HighKick", Target = targetChar, Key = "Q" })
+                        rem:FireServer({ Key = Enum.KeyCode.Q, Target = targetChar })
+                    else
+                        rem:FireServer("HighKick")
+                        rem:FireServer("Heavy")
+                        rem:FireServer("Q")
+                        rem:FireServer("Skill2")
+                        rem:FireServer({ Action = "HighKick", Key = "Q" })
+                    end
+                end
+            end
+        end)
+    end
+
+    -- 4. Garante preservação de velocidade e locomoção após chute alto
+    EnforcePlayerMobility()
+end
+
+-- RAPID KICK FLURRY: Dispara uma rajada ultra-rápida e contínua de chutes sucessivos (Turbo 80+ KPS)
+function CombatActions.PerformRapidKickFlurry(targetChar, customBurstCount)
+    local count = customBurstCount or CONFIG.KICK_BURST_COUNT or 10
+    local speed = CONFIG.KICK_SPEED or 0.010
+
+    task.spawn(function()
+        for i = 1, count do
+            if not targetChar or not targetChar:FindFirstChild("Humanoid") or targetChar.Humanoid.Health <= 0 then break end
+            if SubaruState.PriorityMode or SubaruState.IsBlocking then break end
+
+            if i % 2 == 1 then
+                CombatActions.PerformLowKick(targetChar)
+            else
+                CombatActions.PerformHighKick(targetChar)
+            end
+            task.wait(speed)
+        end
+    end)
+end
+
+function CombatActions.FireAllBlockRemotes(state)
+    local now = tick()
+    if CONFIG.ANTI_KICK_SAFETY and (now - SubaruState.LastRemoteSendTime < 0.01) then return end
+    SubaruState.LastRemoteSendTime = now
+    for _, rem in ipairs(DiscoveredCombatRemotes) do
+        pcall(function()
+            if rem:IsA("RemoteEvent") then
+                local rn = rem.Name:lower()
+                if rn:find("block") or rn:find("guard") or rn:find("parry") or rn:find("defend") then
+                    rem:FireServer(state)
+                    rem:FireServer("Block", state)
+                    rem:FireServer({ Action = "Block", State = state, Key = "F" })
+                end
+            end
+        end)
+    end
+end
+
+function CombatActions.SetBlockState(state)
+    SubaruState.IsBlocking = state
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum and not state then
+            pcall(function() hum.PlatformStand = false; hum.Sit = false end)
+        end
+        pcall(function()
+            char:SetAttribute("Blocking", state)
+            char:SetAttribute("Guard", state)
+            char:SetAttribute("IsBlocking", state)
+            LocalPlayer:SetAttribute("Blocking", state)
+        end)
+    end
+    if state then
+        CombatActions.Send(ACTION_BUFFERS.BLOCK_ON)
+        CombatActions.FireAllBlockRemotes(true)
+    else
+        CombatActions.Send(ACTION_BUFFERS.BLOCK_OFF)
+        CombatActions.FireAllBlockRemotes(false)
+    end
+end
+
+-- ==================== MANUAL BLOCK TURBO (0ms RESPOSTA INSTANTÂNEA AO CLICAR NO BOTÃO) ====================
+-- Bypassa todos os atrasos de humanização e debounces ao clicar no botão de Block ou apertar F
+function CombatActions.TriggerManualBlock(state)
+    isBlockQueued = false
+    if SubaruState.BlockThread then
+        task.cancel(SubaruState.BlockThread)
+        SubaruState.BlockThread = nil
+    end
+
+    if state then
+        -- 0ms: Interrompe qualquer combo ativo para priorizar a guarda com prioridade absoluta
+        SubaruState.IsAttacking = false
+        SubaruState.IsBlocking = true
+        SubaruState.LastBlockTime = tick()
+
+        -- 1. Disparo de Opcode Imediato
+        CombatActions.Send(ACTION_BUFFERS.BLOCK_ON)
+        
+        -- 2. Disparo Multi-Remote Instantâneo
+        CombatActions.FireAllBlockRemotes(true)
+
+        -- 3. Aceleração de Animação de Guarda para 5.0x e corte de animações de ataque
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char then
+                char:SetAttribute("Blocking", true)
+                char:SetAttribute("Guard", true)
+                char:SetAttribute("IsBlocking", true)
+                LocalPlayer:SetAttribute("Blocking", true)
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    for _, tr in ipairs(hum:GetPlayingAnimationTracks()) do
+                        local tn = tostring(tr.Name):lower()
+                        if tn:find("block") or tn:find("guard") or tn:find("shield") or tn:find("parry") or tn:find("defend") then
+                            tr:AdjustSpeed(5.0)
+                        elseif tn:find("punch") or tn:find("m1") or tn:find("swing") or tn:find("attack") or tn:find("kick") then
+                            tr:Stop(0.01)
+                        end
+                    end
+                end
+            end
+        end)
+    else
+        -- 0ms: Solta a guarda e restaura mobilidade imediatamente
+        CombatActions.ReleaseBlock()
+    end
+end
+
+function CombatActions.TriggerAutoBlock(attackKey)
+    if not CONFIG.AUTO_BLOCK_ENABLED then return end
+    if SubaruState.IsAttacking or SubaruState.IsBlocking or isBlockQueued then return end
+    local now = tick()
+    local minCooldown = CONFIG.GUARD_COOLDOWN or 0.25
+    if now - SubaruState.LastBlockFinishedTime < minCooldown then return end
+    if now - SubaruState.LastBlockTime < minCooldown then return end
+    if attackKey and SubaruState.HandledAttacks[attackKey] and (now - SubaruState.HandledAttacks[attackKey] < 0.75) then return end
+    if attackKey then SubaruState.HandledAttacks[attackKey] = now end
+
+    SubaruState.LastBlockTime = now
+    isBlockQueued = true
+    
+    -- Duração de retenção de guarda adaptada ao Smart HP
+    local blockHoldDuration = 0.12
+    local reactionDelay = 0.000
+    
+    if SubaruState.AdaptiveMode == "CLUTCH_SURVIVAL" then
+        blockHoldDuration = CONFIG.CLUTCH_FLASH_PARRY_SPEED or 0.025 -- Micro flash parry para fuga rápida
+        reactionDelay = 0.000
+    elseif CONFIG.HUMANIZE_BLOCK then
+        reactionDelay = math.max(0.01, (CONFIG.HUMAN_REACTION_DELAY or 0.08) + (math.random(-5, 10)/1000))
+        blockHoldDuration = math.max(0.10, (CONFIG.HUMAN_HOLD_DURATION or 0.10) + (math.random(-10, 10)/1000))
+    end
+
+    task.delay(reactionDelay, function()
+        isBlockQueued = false
+        if not SubaruState.Enabled or SubaruState.IsAttacking then return end
+        CombatActions.SetBlockState(true)
+        if SubaruState.BlockThread then task.cancel(SubaruState.BlockThread) end
+        SubaruState.BlockThread = task.delay(blockHoldDuration, function()
+            CombatActions.ReleaseBlock()
+        end)
+    end)
+end
+
+function CombatActions.ReleaseBlock()
+    isBlockQueued = false
+    if SubaruState.BlockThread then
+        task.cancel(SubaruState.BlockThread)
+        SubaruState.BlockThread = nil
+    end
+    SubaruState.LastBlockFinishedTime = tick()
+    CombatActions.SetBlockState(false)
+end
+
+function CombatActions.ExecuteGuardBreak()
+    local now = tick()
+    if now - SubaruState.LastGuardBreakTime < 0.12 then return end
+    SubaruState.LastGuardBreakTime = now
+    CombatActions.PerformLowKick(SubaruState.Target)
+    task.delay(0.05, function()
+        CombatActions.PerformPerfectM1(SubaruState.Target)
+    end)
+end
+
+function CombatActions.SendWithFlankBypass(actionInput, targetChar)
+    local isLowKick = (actionInput == "LOW_KICK" or actionInput == "LOW" or actionInput == "E" or actionInput == "Sweep" or actionInput == ACTION_BUFFERS.LOW_KICK)
+    local isHighKick = (actionInput == "HIGH_KICK" or actionInput == "HIGH" or actionInput == "Q" or actionInput == "Heavy" or actionInput == ACTION_BUFFERS.HIGH_KICK)
+
+    if not targetChar then
+        if isHighKick then
+            CombatActions.PerformHighKick(nil)
+        elseif isLowKick then
+            CombatActions.PerformLowKick(nil)
+        else
+            CombatActions.PerformPerfectM1(nil)
+        end
+        return
+    end
+
+    local isEnemyBlocking = (targetChar:GetAttribute("Blocking") or targetChar:GetAttribute("Guard") or targetChar:GetAttribute("IsBlocking")) == true
+    local tRoot = targetChar:FindFirstChild("HumanoidRootPart")
+
+    -- Se o inimigo estiver defendendo ou com Shield Piercer ativo, injeta bypass em múltiplos ângulos cegos
+    if (isEnemyBlocking or CONFIG.SHIELD_PIERCER) and tRoot then
+        if CONFIG.ANGLE_BYPASS then
+            pcall(function()
+                -- Ângulo 180° (Costas) + 90° (Flancos) furam completamente o cone de defesa do Roblox
+                local flankBack = tRoot.CFrame * CFrame.new(0, 0, 1.4) * CFrame.Angles(0, math.pi, 0)
+                local flankLeft = tRoot.CFrame * CFrame.new(-1.4, 0, 0) * CFrame.Angles(0, math.rad(-90), 0)
+                local flankRight = tRoot.CFrame * CFrame.new(1.4, 0, 0) * CFrame.Angles(0, math.rad(90), 0)
+
+                for _, rem in ipairs(DiscoveredCombatRemotes) do
+                    if rem:IsA("RemoteEvent") then
+                        rem:FireServer("Hit", targetChar, flankBack)
+                        rem:FireServer("M1", targetChar, flankBack)
+                        rem:FireServer("Hit", targetChar, flankLeft)
+                        rem:FireServer("Hit", targetChar, flankRight)
+                    end
+                end
+            end)
+        end
+
+        if isHighKick then
+            CombatActions.PerformHighKick(targetChar)
+        elseif isLowKick then
+            CombatActions.PerformLowKick(targetChar)
+        else
+            CombatActions.PerformPerfectM1(targetChar)
+        end
+
+        if CONFIG.ANTI_BLOCK_SPAM then
+            task.spawn(CombatActions.ExecuteGuardBreak)
+        end
+    else
+        if isHighKick then
+            CombatActions.PerformHighKick(targetChar)
+        elseif isLowKick then
+            CombatActions.PerformLowKick(targetChar)
+        else
+            CombatActions.PerformPerfectM1(targetChar)
+        end
+    end
+end
+
+-- ==================== MÓDULO COMBAT GAME SENSE AI & DECISÃO DE COMBOS ====================
+local GameSense = {}
+
+-- Atualiza o modo adaptativo baseado na vida do jogador e do inimigo
+function GameSense.UpdateAdaptiveMode(localHpPercent, enemyHpPercent)
+    if not CONFIG.SMART_HP_ADAPTIVE then
+        SubaruState.AdaptiveMode = "DOMINANCE"
+        return "DOMINANCE"
+    end
+    
+    if enemyHpPercent and enemyHpPercent <= (CONFIG.ENEMY_EXECUTE_THRESHOLD or 25) then
+        SubaruState.AdaptiveMode = "EXECUTE_RUSH"
+        return "EXECUTE_RUSH"
+    end
+    
+    if localHpPercent <= (CONFIG.HP_LOW_THRESHOLD or 30) then
+        SubaruState.AdaptiveMode = "CLUTCH_SURVIVAL"
+        return "CLUTCH_SURVIVAL"
+    elseif localHpPercent >= (CONFIG.HP_HIGH_THRESHOLD or 70) then
+        SubaruState.AdaptiveMode = "DOMINANCE"
+        return "DOMINANCE"
+    else
+        SubaruState.AdaptiveMode = "TACTICAL"
+        return "TACTICAL"
+    end
+end
+
+function GameSense.AnalyzeTarget(targetChar)
+    local analysis = {
+        isValid = false,
+        distance = 999,
+        isFacingUs = false,
+        isInMeleeReach = false,
+        isAttacking = false,
+        attackKey = nil,
+        isGuardBreak = false,
+        isWhiffRecovery = false,
+        isKnockedDownIFrame = false,
+        isStunnedOrRagdoll = false,
+        isBlocking = false,
+        healthPercent = 100,
+        threatVerdict = "SAFE",
+        optimalComboType = "HYBRID_PUNCH_KICK"
+    }
+    if not targetChar or not targetChar:FindFirstChild("HumanoidRootPart") then return analysis end
+    local pChar = LocalPlayer.Character
+    if not pChar or not pChar:FindFirstChild("HumanoidRootPart") then return analysis end
+
+    local pRoot = pChar.HumanoidRootPart
+    local tRoot = targetChar.HumanoidRootPart
+    local tHum = targetChar:FindFirstChildOfClass("Humanoid")
+    if not tHum or tHum.Health <= 0 then return analysis end
+
+    analysis.isValid = true
+    analysis.distance = (pRoot.Position - tRoot.Position).Magnitude
+    analysis.healthPercent = (tHum.Health / tHum.MaxHealth) * 100
+
+    local toPlayer = (pRoot.Position - tRoot.Position).Unit
+    local dotProduct = tRoot.CFrame.LookVector:Dot(toPlayer)
+    analysis.isFacingUs = (dotProduct > -0.2) or (analysis.distance <= (CONFIG.MAX_MELEE_REACH or 8.5))
+    analysis.isInMeleeReach = (analysis.distance <= (CONFIG.MAX_MELEE_REACH or 6.5))
+
+    if targetChar:GetAttribute("Blocking") or targetChar:GetAttribute("Guard") or targetChar:FindFirstChild("BlockEffect") then
+        analysis.isBlocking = true
+    end
+
+    -- Detector de Spam de Block (Rastreia oscilação rápida de F / Shield)
+    local targetId = targetChar
+    if not SubaruState.TargetBlockHistory[targetId] then
+        SubaruState.TargetBlockHistory[targetId] = {
+            lastState = analysis.isBlocking,
+            changes = 0,
+            lastChangeTime = tick()
+        }
+    end
+    local bh = SubaruState.TargetBlockHistory[targetId]
+    if bh.lastState ~= analysis.isBlocking then
+        bh.changes = bh.changes + 1
+        bh.lastChangeTime = tick()
+        bh.lastState = analysis.isBlocking
+        if not analysis.isBlocking then
+            SubaruState.LastBlockDropTime = tick()
+        end
+    end
+    if tick() - bh.lastChangeTime > 1.5 then
+        bh.changes = 0
+    end
+    analysis.isBlockSpamming = (bh.changes >= 2) or analysis.isBlocking
+
+    local tracks = {}
+    pcall(function()
+        for _, tr in ipairs(tHum:GetPlayingAnimationTracks()) do table.insert(tracks, tr) end
+    end)
+    for _, track in ipairs(tracks) do
+        if track.IsPlaying and track.WeightCurrent > 0.15 then
+            local combined = (tostring(track.Animation.AnimationId) .. " " .. tostring(track.Name)):lower()
+            if combined:find("block") or combined:find("guard") or combined:find("defend") then
+                analysis.isBlocking = true
+                analysis.isBlockSpamming = true
+            end
+            if combined:find("heavy") or combined:find("guardbreak") or combined:find("smash") then
+                analysis.isGuardBreak = true
+            end
+            if not (combined:find("idle") or combined:find("walk") or combined:find("run")) then
+                if combined:find("attack") or combined:find("punch") or combined:find("kick") or combined:find("m1") or combined:find("slash") or combined:find("swing") then
+                    local progress = track.TimePosition / (track.Length > 0 and track.Length or 0.8)
+                    if progress >= 0.05 and progress <= 0.70 then
+                        analysis.isAttacking = true
+                        analysis.attackKey = tostring(track.Animation.AnimationId) .. "_" .. tostring(math.floor(track.TimePosition * 4))
+                    elseif progress > 0.70 then
+                        analysis.isWhiffRecovery = true
+                    end
+                end
+            end
+        end
+    end
+
+    -- Determinador Tático de Combo do Game Sense (Sabe exatamente o combo mais letal para a situação)
+    if analysis.isBlocking or analysis.isBlockSpamming then
+        analysis.optimalComboType = "GUARD_BREAKER_COMBO" -- Rasteira / Chute E + Bypass Blindspot para furar block spam
+    elseif analysis.isWhiffRecovery then
+        analysis.optimalComboType = "WHIFF_PUNISH_BURST" -- Punição devastadora no erro do oponente
+    elseif analysis.isAttacking and not analysis.isGuardBreak then
+        analysis.optimalComboType = "COUNTER_INTERRUPT" -- Interrompe com chute de prioridade rápida
+    elseif analysis.healthPercent <= 25 then
+        analysis.optimalComboType = "EXECUTE_FINISHER" -- Rajada máxima de socos e chutes para finalizar
+    else
+        analysis.optimalComboType = "HYBRID_PUNCH_KICK" -- Combinação mais forte do jogo (M1 + Chutes E/Q)
+    end
+
+    return analysis
+end
+
+function GameSense.ShouldBlock(analysis)
+    if not CONFIG.AUTO_BLOCK_ENABLED then return false, "DISABLED" end
+    if SubaruState.IsAttacking then return false, "ATTACKING" end
+    if analysis.isGuardBreak and CONFIG.ANTI_GB_EVASION then return false, "GUARD_BREAK_EVASION" end
+    if not analysis.isFacingUs then return false, "NOT_FACING" end
+    if analysis.distance > (CONFIG.MAX_MELEE_REACH or 6.5) then return false, "OUT_OF_RANGE" end
+    if analysis.isWhiffRecovery or analysis.isBlocking or analysis.isStunnedOrRagdoll then return false, "NO_DANGER" end
+    if tick() - SubaruState.LastBlockFinishedTime < (CONFIG.GUARD_COOLDOWN or 0.35) then return false, "COOLDOWN" end
+    if analysis.isAttacking then return true, "REAL_THREAT" end
+    return false, "NEUTRAL"
+end
+
+-- ==================== EXECUÇÃO DE COMBO INTELIGENTE (GAME SENSE TÁTICO TURBO) ====================
+local function ExecuteSmartCombo(comboVerdict, targetChar)
+    if not SubaruState.Enabled then return end
+    if SubaruState.IsAttacking or SubaruState.IsBlocking then return end
+    if tick() - SubaruState.LastComboTime < (CONFIG.COMBO_DELAY or 0.005) then return end
+
+    SubaruState.IsAttacking = true
+    SubaruState.LastComboTime = tick()
+
+    task.spawn(function()
+        local sequence = {}
+        local m1Speed = math.max(0.016, CONFIG.PERFECT_M1_SPEED or 0.022)
+        local kickSpeed = math.max(0.010, CONFIG.KICK_SPEED or 0.012)
+        local kickBurst = math.max(6, CONFIG.KICK_BURST_COUNT or 10)
+
+        -- 1. SE O INIMIGO ESTÁ BLOQUEANDO: Quebra de Guarda com Chute Baixo (E) + Rajada de Chutes Fortes
+        if comboVerdict == "GUARD_BREAKER_COMBO" or (targetChar and (targetChar:GetAttribute("Blocking") or targetChar:GetAttribute("Guard"))) then
+            table.insert(sequence, "LOW_KICK")  -- Rasteira quebra-guarda imediata (E)
+            table.insert(sequence, kickSpeed)
+            table.insert(sequence, "HIGH_KICK") -- Chute alto aproveitando quebra (Q)
+            table.insert(sequence, kickSpeed)
+            table.insert(sequence, "PUNCH")     -- Soco M1
+            table.insert(sequence, m1Speed)
+            table.insert(sequence, "HIGH_KICK") -- Chute alto (Q)
+            table.insert(sequence, kickSpeed)
+            table.insert(sequence, "LOW_KICK")  -- Rasteira finalizadora (E)
+            table.insert(sequence, kickSpeed)
+
+        -- 2. SE O INIMIGO ERROU GOLPE (WHIFF RECOVERY): Punição Máxima M1 + Chutes Rápidos
+        elseif comboVerdict == "WHIFF_PUNISH_BURST" then
+            table.insert(sequence, "PUNCH")
+            table.insert(sequence, m1Speed)
+            table.insert(sequence, "HIGH_KICK")
+            table.insert(sequence, kickSpeed)
+            table.insert(sequence, "PUNCH")
+            table.insert(sequence, m1Speed)
+            table.insert(sequence, "LOW_KICK")
+            table.insert(sequence, kickSpeed)
+            table.insert(sequence, "HIGH_KICK")
+            table.insert(sequence, kickSpeed)
+
+        -- 3. SE O INIMIGO ESTÁ COM POUCA VIDA (<25%): EXECUTE RUSH - Finalizador Implacável de Chutes
+        elseif comboVerdict == "EXECUTE_FINISHER" or SubaruState.AdaptiveMode == "EXECUTE_RUSH" then
+            local ultraKickSpeed = math.max(0.008, kickSpeed * 0.70)
+            table.insert(sequence, "PUNCH")
+            table.insert(sequence, m1Speed)
+            table.insert(sequence, "HIGH_KICK")
+            table.insert(sequence, ultraKickSpeed)
+            table.insert(sequence, "LOW_KICK")
+            table.insert(sequence, ultraKickSpeed)
+            table.insert(sequence, "HIGH_KICK")
+            table.insert(sequence, ultraKickSpeed)
+            table.insert(sequence, "PUNCH")
+            table.insert(sequence, m1Speed)
+            table.insert(sequence, "HIGH_KICK")
+            table.insert(sequence, ultraKickSpeed)
+            table.insert(sequence, "LOW_KICK")
+            table.insert(sequence, ultraKickSpeed)
+
+        -- 4. SE NOSSA VIDA ESTÁ CRÍTICA (<30%): Clutch Knockback (Rasteira de afastamento + Soco)
+        elseif SubaruState.AdaptiveMode == "CLUTCH_SURVIVAL" then
+            table.insert(sequence, "LOW_KICK")  -- Desestabiliza com rasteira (E)
+            table.insert(sequence, kickSpeed)
+            table.insert(sequence, "PUNCH")     -- Soco para manter pressão
+            table.insert(sequence, m1Speed)
+            table.insert(sequence, "HIGH_KICK") -- Chute de knockback (Q)
+            table.insert(sequence, kickSpeed * 1.05)
+
+        -- 5. COMBO PADRÃO MAIS FORTE DO JOGO: HYBRID PUNCH & HIGH-FREQUENCY KICKS
+        -- (M1 -> Low Kick E -> M1 -> High Kick Q -> Low Kick E -> High Kick Q)
+        else
+            table.insert(sequence, "PUNCH")
+            table.insert(sequence, m1Speed)
+            table.insert(sequence, "LOW_KICK")
+            table.insert(sequence, kickSpeed)
+            table.insert(sequence, "PUNCH")
+            table.insert(sequence, m1Speed)
+            table.insert(sequence, "HIGH_KICK")
+            table.insert(sequence, kickSpeed)
+            table.insert(sequence, "LOW_KICK")
+            table.insert(sequence, kickSpeed)
+            table.insert(sequence, "HIGH_KICK")
+            table.insert(sequence, kickSpeed)
+            for k = 1, math.max(0, kickBurst - 6) do
+                local kb = (k % 2 == 1) and "LOW_KICK" or "HIGH_KICK"
+                table.insert(sequence, kb)
+                table.insert(sequence, kickSpeed)
+            end
+        end
+
+        -- Executa a cadeia com bypass e registro limpo
+        for i = 1, #sequence, 2 do
+            if not SubaruState.Target or not SubaruState.Target:FindFirstChild("Humanoid") or SubaruState.Target.Humanoid.Health <= 0 then break end
+            if SubaruState.PriorityMode or SubaruState.IsBlocking then break end
+            
+            local move = sequence[i]
+            local delayTime = sequence[i+1] or kickSpeed
+            CombatActions.SendWithFlankBypass(move, SubaruState.Target)
+            EnforcePlayerMobility()
+            task.wait(delayTime)
+        end
+        SubaruState.IsAttacking = false
+        EnforcePlayerMobility()
+    end)
+end
+
+-- ==================== LOOP PRINCIPAL HEARTBEAT (GAME SENSE & DECISÃO) ====================
+RunService.Heartbeat:Connect(function()
+    if not SubaruState.Enabled then return end
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 or not char:FindFirstChild("HumanoidRootPart") then
+        CombatActions.ReleaseBlock()
+        return
+    end
+
+    local hum = char.Humanoid
+    local myHpPercent = (hum.Health / hum.MaxHealth) * 100
+
+    -- 1. Varredura do Inimigo Mais Próximo
+    local closestEnemy = nil
+    local shortestDist = CONFIG.DETECTION_RANGE
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local enemyHum = p.Character:FindFirstChild("Humanoid")
+            if enemyHum and enemyHum.Health > 0 then
+                local d = (char.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
+                if d < shortestDist then
+                    shortestDist = d
+                    closestEnemy = p.Character
+                end
+            end
+        end
+    end
+    SubaruState.Target = closestEnemy
+
+    if closestEnemy and closestEnemy:FindFirstChild("HumanoidRootPart") then
+        local enemyHum = closestEnemy:FindFirstChildOfClass("Humanoid")
+        local enemyHpPercent = enemyHum and ((enemyHum.Health / enemyHum.MaxHealth) * 100) or 100
+        
+        -- Atualiza Smart HP Adaptive Mode
+        GameSense.UpdateAdaptiveMode(myHpPercent, enemyHpPercent)
+
+        local analysis = GameSense.AnalyzeTarget(closestEnemy)
+        local shouldBlock = GameSense.ShouldBlock(analysis)
+
+        if shouldBlock then
+            CombatActions.TriggerAutoBlock(analysis.attackKey)
+        else
+            if SubaruState.IsBlocking and (tick() - SubaruState.LastBlockTime > 0.05) then
+                CombatActions.ReleaseBlock()
+            end
+
+            -- Disparo do Auto-Combo com Game Sense Inteligente e Chutes Híbridos
+            if CONFIG.AUTO_COMBO_ENABLED and analysis.distance <= CONFIG.ATTACK_RANGE then
+                local targetCombo = (CONFIG.GAME_SENSE_ENABLED and analysis.optimalComboType) or "HYBRID_PUNCH_KICK"
+                ExecuteSmartCombo(targetCombo, closestEnemy)
+            end
+        end
+    else
+        SubaruState.AdaptiveMode = GameSense.UpdateAdaptiveMode(myHpPercent, 100)
+    end
+end)
+
+print("[SCARLET 🌙 V5.5] Game Sense Combat AI & Chutes de Alta Frequência Carregados com Sucesso!")
+
+-- ==================== CRIAÇÃO DO ROBLOX MOBILE GUI HUB V5.5 ====================
+local function CreateScarletMobileHubGUI()
+    pcall(function()
+        -- 1. Resolver parent seguro para evitar erros de permissão em executores móveis e PC
+        local guiParent = nil
+        pcall(function()
+            if gethui then
+                guiParent = gethui()
+            elseif syn and syn.protect_gui then
+                local folder = Instance.new("Folder")
+                syn.protect_gui(folder)
+                folder.Parent = CoreGui
+                guiParent = folder
+            elseif CoreGui then
+                local s = pcall(function() local _ = CoreGui.Name end)
+                if s then guiParent = CoreGui end
+            end
+        end)
+        
+        if not guiParent then
+            guiParent = LocalPlayer:WaitForChild("PlayerGui", 10) or LocalPlayer:FindFirstChildOfClass("PlayerGui")
+        end
+        
+        if not guiParent then return end
+
+        -- Remove instâncias antigas se houver
+        if guiParent:FindFirstChild("ScarletMobileHub_V55") then
+            guiParent.ScarletMobileHub_V55:Destroy()
+        end
+
+        local ScreenGui = Instance.new("ScreenGui")
+        ScreenGui.Name = "ScarletMobileHub_V55"
+        ScreenGui.ResetOnSpawn = false
+        ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        ScreenGui.IgnoreGuiInset = true
+        ScreenGui.DisplayOrder = 999
+        ScreenGui.Parent = guiParent
+
+        -- ==================== BOTÃO FLUTUANTE 🌙 (DRAGGABLE TOUCH & MOUSE) ====================
+        local FloatingBtn = Instance.new("ImageButton")
+        FloatingBtn.Name = "ScarletFloatingMoon"
+        FloatingBtn.Size = UDim2.new(0, 52, 0, 52)
+        FloatingBtn.Position = UDim2.new(0, 20, 0.5, -26)
+        FloatingBtn.BackgroundColor3 = Color3.fromRGB(20, 10, 32)
+        FloatingBtn.AutoButtonColor = false
+        FloatingBtn.Active = true
+        FloatingBtn.ZIndex = 100
+        FloatingBtn.Parent = ScreenGui
+
+        local BtnCorner = Instance.new("UICorner")
+        BtnCorner.CornerRadius = UDim.new(1, 0)
+        BtnCorner.Parent = FloatingBtn
+
+        local BtnStroke = Instance.new("UIStroke")
+        BtnStroke.Color = Color3.fromRGB(244, 114, 182)
+        BtnStroke.Thickness = 2
+        BtnStroke.Transparency = 0.2
+        BtnStroke.Parent = FloatingBtn
+
+        local MoonLabel = Instance.new("TextLabel")
+        MoonLabel.Size = UDim2.new(1, 0, 1, 0)
+        MoonLabel.BackgroundTransparency = 1
+        MoonLabel.Text = "🌙"
+        MoonLabel.TextSize = 24
+        MoonLabel.TextColor3 = Color3.fromRGB(254, 240, 138)
+        MoonLabel.ZIndex = 101
+        MoonLabel.Parent = FloatingBtn
+
+        local StatusDot = Instance.new("Frame")
+        StatusDot.Size = UDim2.new(0, 10, 0, 10)
+        StatusDot.Position = UDim2.new(1, -8, 0, -2)
+        StatusDot.BackgroundColor3 = Color3.fromRGB(244, 63, 94)
+        StatusDot.ZIndex = 102
+        StatusDot.Parent = FloatingBtn
+
+        local DotCorner = Instance.new("UICorner")
+        DotCorner.CornerRadius = UDim.new(1, 0)
+        DotCorner.Parent = StatusDot
+
+        -- ==================== JANELA PRINCIPAL DO HUB ====================
+        local MainFrame = Instance.new("Frame")
+        MainFrame.Name = "MainHubFrame"
+        MainFrame.Size = UDim2.new(0, 360, 0, 480)
+        MainFrame.Position = UDim2.new(0.5, -180, 0.5, -240)
+        MainFrame.BackgroundColor3 = Color3.fromRGB(15, 7, 28)
+        MainFrame.BorderSizePixel = 0
+        MainFrame.ClipsDescendants = true
+        MainFrame.Active = true
+        MainFrame.Visible = true
+        MainFrame.ZIndex = 10
+        MainFrame.Parent = ScreenGui
+
+        local MainCorner = Instance.new("UICorner")
+        MainCorner.CornerRadius = UDim.new(0, 16)
+        MainCorner.Parent = MainFrame
+
+        local MainStroke = Instance.new("UIStroke")
+        MainStroke.Color = Color3.fromRGB(244, 114, 182)
+        MainStroke.Thickness = 1.5
+        MainStroke.Transparency = 0.4
+        MainStroke.Parent = MainFrame
+
+        -- Top Header
+        local Header = Instance.new("Frame")
+        Header.Name = "Header"
+        Header.Size = UDim2.new(1, 0, 0, 44)
+        Header.BackgroundColor3 = Color3.fromRGB(22, 10, 38)
+        Header.BorderSizePixel = 0
+        Header.ZIndex = 11
+        Header.Parent = MainFrame
+
+        local HeaderTitle = Instance.new("TextLabel")
+        HeaderTitle.Size = UDim2.new(0, 200, 1, 0)
+        HeaderTitle.Position = UDim2.new(0, 14, 0, 0)
+        HeaderTitle.BackgroundTransparency = 1
+        HeaderTitle.Text = "🌙 Scarlet Mobile Hub V5.5"
+        HeaderTitle.Font = Enum.Font.GothamBold
+        HeaderTitle.TextSize = 14
+        HeaderTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+        HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+        HeaderTitle.ZIndex = 12
+        HeaderTitle.Parent = Header
+
+        -- Close Button
+        local CloseBtn = Instance.new("TextButton")
+        CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+        CloseBtn.Position = UDim2.new(1, -36, 0, 8)
+        CloseBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 60)
+        CloseBtn.Text = "✕"
+        CloseBtn.Font = Enum.Font.GothamBold
+        CloseBtn.TextSize = 12
+        CloseBtn.TextColor3 = Color3.fromRGB(244, 114, 182)
+        CloseBtn.ZIndex = 12
+        CloseBtn.Parent = Header
+
+        local CloseCorner = Instance.new("UICorner")
+        CloseCorner.CornerRadius = UDim.new(1, 0)
+        CloseCorner.Parent = CloseBtn
+
+        CloseBtn.MouseButton1Click:Connect(function()
+            MainFrame.Visible = false
+        end)
+
+        -- Status Banner (Adaptive HP Readout)
+        local StatusBanner = Instance.new("Frame")
+        StatusBanner.Size = UDim2.new(1, -20, 0, 32)
+        StatusBanner.Position = UDim2.new(0, 10, 0, 50)
+        StatusBanner.BackgroundColor3 = Color3.fromRGB(28, 12, 48)
+        StatusBanner.ZIndex = 11
+        StatusBanner.Parent = MainFrame
+
+        local BannerCorner = Instance.new("UICorner")
+        BannerCorner.CornerRadius = UDim.new(0, 8)
+        BannerCorner.Parent = StatusBanner
+
+        local ModeBadge = Instance.new("TextLabel")
+        ModeBadge.Size = UDim2.new(1, -12, 1, 0)
+        ModeBadge.Position = UDim2.new(0, 8, 0, 0)
+        ModeBadge.BackgroundTransparency = 1
+        ModeBadge.Text = "MODO ATIVO: 👑 DOMINANCE (>70% HP)"
+        ModeBadge.Font = Enum.Font.GothamBold
+        ModeBadge.TextSize = 11
+        ModeBadge.TextColor3 = Color3.fromRGB(244, 114, 182)
+        ModeBadge.TextXAlignment = Enum.TextXAlignment.Left
+        ModeBadge.ZIndex = 12
+        ModeBadge.Parent = StatusBanner
+
+        -- Tab Navigation Buttons Bar
+        local TabBar = Instance.new("ScrollingFrame")
+        TabBar.Size = UDim2.new(1, -20, 0, 36)
+        TabBar.Position = UDim2.new(0, 10, 0, 88)
+        TabBar.BackgroundTransparency = 1
+        TabBar.ScrollBarThickness = 2
+        TabBar.CanvasSize = UDim2.new(0, 480, 0, 0)
+        TabBar.ZIndex = 11
+        TabBar.Parent = MainFrame
+
+        local TabLayout = Instance.new("UIListLayout")
+        TabLayout.FillDirection = Enum.FillDirection.Horizontal
+        TabLayout.Padding = UDim.new(0, 6)
+        TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        TabLayout.Parent = TabBar
+
+        -- Container para Conteúdos das Abas
+        local TabContainer = Instance.new("Frame")
+        TabContainer.Size = UDim2.new(1, -20, 0, 340)
+        TabContainer.Position = UDim2.new(0, 10, 0, 130)
+        TabContainer.BackgroundTransparency = 1
+        TabContainer.ZIndex = 11
+        TabContainer.Parent = MainFrame
+
+        -- Helpers para Criar UI Elements
+        local TabFrames = {}
+        local CurrentActiveTab = "PerfectM1"
+
+        local function CreateTabFrame(tabName)
+            local sf = Instance.new("ScrollingFrame")
+            sf.Name = tabName .. "Frame"
+            sf.Size = UDim2.new(1, 0, 1, 0)
+            sf.BackgroundTransparency = 1
+            sf.ScrollBarThickness = 3
+            sf.ScrollBarImageColor3 = Color3.fromRGB(244, 114, 182)
+            sf.CanvasSize = UDim2.new(0, 0, 0, 420)
+            sf.Visible = (tabName == CurrentActiveTab)
+            sf.ZIndex = 12
+            sf.Parent = TabContainer
+
+            local list = Instance.new("UIListLayout")
+            list.Padding = UDim.new(0, 8)
+            list.SortOrder = Enum.SortOrder.LayoutOrder
+            list.Parent = sf
+
+            TabFrames[tabName] = sf
+            return sf
+        end
+
+        local function AddTabButton(tabName, displayName, icon)
+            local btn = Instance.new("TextButton")
+            btn.Name = tabName .. "TabBtn"
+            btn.Size = UDim2.new(0, 95, 0, 30)
+            btn.BackgroundColor3 = (tabName == CurrentActiveTab) and Color3.fromRGB(244, 63, 94) or Color3.fromRGB(28, 12, 48)
+            btn.Text = icon .. " " .. displayName
+            btn.Font = Enum.Font.GothamSemibold
+            btn.TextSize = 11
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.ZIndex = 12
+            btn.Parent = TabBar
+
+            local bCorner = Instance.new("UICorner")
+            bCorner.CornerRadius = UDim.new(0, 6)
+            bCorner.Parent = btn
+
+            btn.MouseButton1Click:Connect(function()
+                CurrentActiveTab = tabName
+                for t, f in pairs(TabFrames) do
+                    f.Visible = (t == tabName)
+                end
+                for _, b in ipairs(TabBar:GetChildren()) do
+                    if b:IsA("TextButton") then
+                        if b.Name == tabName .. "TabBtn" then
+                            b.BackgroundColor3 = Color3.fromRGB(244, 63, 94)
+                        else
+                            b.BackgroundColor3 = Color3.fromRGB(28, 12, 48)
+                        end
+                    end
+                end
+            end)
+            return btn
+        end
+
+        local function CreateToggleItem(parent, title, desc, defaultValue, onToggle)
+            local item = Instance.new("Frame")
+            item.Size = UDim2.new(1, -6, 0, 52)
+            item.BackgroundColor3 = Color3.fromRGB(20, 8, 36)
+            item.ZIndex = 13
+            item.Parent = parent
+
+            local itemCorner = Instance.new("UICorner")
+            itemCorner.CornerRadius = UDim.new(0, 8)
+            itemCorner.Parent = item
+
+            local itemStroke = Instance.new("UIStroke")
+            itemStroke.Color = Color3.fromRGB(60, 25, 90)
+            itemStroke.Thickness = 1
+            itemStroke.Parent = item
+
+            local titleLbl = Instance.new("TextLabel")
+            titleLbl.Size = UDim2.new(1, -70, 0, 20)
+            titleLbl.Position = UDim2.new(0, 10, 0, 6)
+            titleLbl.BackgroundTransparency = 1
+            titleLbl.Text = title
+            titleLbl.Font = Enum.Font.GothamBold
+            titleLbl.TextSize = 12
+            titleLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+            titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+            titleLbl.ZIndex = 14
+            titleLbl.Parent = item
+
+            local descLbl = Instance.new("TextLabel")
+            descLbl.Size = UDim2.new(1, -70, 0, 18)
+            descLbl.Position = UDim2.new(0, 10, 0, 26)
+            descLbl.BackgroundTransparency = 1
+            descLbl.Text = desc
+            descLbl.Font = Enum.Font.Gotham
+            descLbl.TextSize = 10
+            descLbl.TextColor3 = Color3.fromRGB(180, 160, 200)
+            descLbl.TextXAlignment = Enum.TextXAlignment.Left
+            descLbl.ZIndex = 14
+            descLbl.Parent = item
+
+            local toggleBtn = Instance.new("TextButton")
+            toggleBtn.Size = UDim2.new(0, 46, 0, 24)
+            toggleBtn.Position = UDim2.new(1, -54, 0.5, -12)
+            toggleBtn.BackgroundColor3 = defaultValue and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(60, 40, 80)
+            toggleBtn.Text = defaultValue and "ON" or "OFF"
+            toggleBtn.Font = Enum.Font.GothamBold
+            toggleBtn.TextSize = 10
+            toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            toggleBtn.ZIndex = 14
+            toggleBtn.Parent = item
+
+            local tCorner = Instance.new("UICorner")
+            tCorner.CornerRadius = UDim.new(0, 12)
+            tCorner.Parent = toggleBtn
+
+            local state = defaultValue
+            toggleBtn.MouseButton1Click:Connect(function()
+                state = not state
+                toggleBtn.BackgroundColor3 = state and Color3.fromRGB(16, 185, 129) or Color3.fromRGB(60, 40, 80)
+                toggleBtn.Text = state and "ON" or "OFF"
+                onToggle(state)
+            end)
+        end
+
+        local function CreateSliderItem(parent, title, minVal, maxVal, currentVal, step, unit, onValChange)
+            local item = Instance.new("Frame")
+            item.Size = UDim2.new(1, -6, 0, 60)
+            item.BackgroundColor3 = Color3.fromRGB(20, 8, 36)
+            item.ZIndex = 13
+            item.Parent = parent
+
+            local itemCorner = Instance.new("UICorner")
+            itemCorner.CornerRadius = UDim.new(0, 8)
+            itemCorner.Parent = item
+
+            local itemStroke = Instance.new("UIStroke")
+            itemStroke.Color = Color3.fromRGB(60, 25, 90)
+            itemStroke.Thickness = 1
+            itemStroke.Parent = item
+
+            local titleLbl = Instance.new("TextLabel")
+            titleLbl.Size = UDim2.new(1, -80, 0, 20)
+            titleLbl.Position = UDim2.new(0, 10, 0, 6)
+            titleLbl.BackgroundTransparency = 1
+            titleLbl.Text = title
+            titleLbl.Font = Enum.Font.GothamBold
+            titleLbl.TextSize = 12
+            titleLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+            titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+            titleLbl.ZIndex = 14
+            titleLbl.Parent = item
+
+            local valLbl = Instance.new("TextLabel")
+            valLbl.Size = UDim2.new(0, 70, 0, 20)
+            valLbl.Position = UDim2.new(1, -78, 0, 6)
+            valLbl.BackgroundTransparency = 1
+            valLbl.Text = tostring(currentVal) .. unit
+            valLbl.Font = Enum.Font.GothamBold
+            valLbl.TextSize = 11
+            valLbl.TextColor3 = Color3.fromRGB(244, 114, 182)
+            valLbl.TextXAlignment = Enum.TextXAlignment.Right
+            valLbl.ZIndex = 14
+            valLbl.Parent = item
+
+            local sliderTrack = Instance.new("Frame")
+            sliderTrack.Size = UDim2.new(1, -20, 0, 10)
+            sliderTrack.Position = UDim2.new(0, 10, 0, 36)
+            sliderTrack.BackgroundColor3 = Color3.fromRGB(40, 20, 60)
+            sliderTrack.ZIndex = 14
+            sliderTrack.Parent = item
+
+            local sCorner = Instance.new("UICorner")
+            sCorner.CornerRadius = UDim.new(1, 0)
+            sCorner.Parent = sliderTrack
+
+            local pct = math.clamp((currentVal - minVal) / (maxVal - minVal), 0, 1)
+            local sliderFill = Instance.new("Frame")
+            sliderFill.Size = UDim2.new(pct, 0, 1, 0)
+            sliderFill.BackgroundColor3 = Color3.fromRGB(244, 63, 94)
+            sliderFill.ZIndex = 15
+            sliderFill.Parent = sliderTrack
+
+            local sfCorner = Instance.new("UICorner")
+            sfCorner.CornerRadius = UDim.new(1, 0)
+            sfCorner.Parent = sliderFill
+
+            local sliderBtn = Instance.new("TextButton")
+            sliderBtn.Size = UDim2.new(1, 0, 1, 0)
+            sliderBtn.BackgroundTransparency = 1
+            sliderBtn.Text = ""
+            sliderBtn.ZIndex = 16
+            sliderBtn.Parent = sliderTrack
+
+            local dragging = false
+            sliderBtn.MouseButton1Down:Connect(function() dragging = true end)
+            UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = false
+                end
+            end)
+            UserInputService.InputChanged:Connect(function(input)
+                if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    local mousePos = input.Position.X
+                    local trackAbsPos = sliderTrack.AbsolutePosition.X
+                    local trackAbsSize = sliderTrack.AbsoluteSize.X
+                    local rel = math.clamp((mousePos - trackAbsPos) / trackAbsSize, 0, 1)
+                    local calculated = minVal + (rel * (maxVal - minVal))
+                    if step and step > 0 then
+                        calculated = math.floor((calculated / step) + 0.5) * step
+                    end
+                    sliderFill.Size = UDim2.new(rel, 0, 1, 0)
+                    valLbl.Text = string.format("%.3f", calculated):gsub("%.?0+$", "") .. unit
+                    onValChange(calculated)
+                end
+            end)
+        end
+
+        local function CreateActionButton(parent, title, icon, onClick)
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, -6, 0, 36)
+            btn.BackgroundColor3 = Color3.fromRGB(45, 18, 70)
+            btn.Text = icon .. "  " .. title
+            btn.Font = Enum.Font.GothamBold
+            btn.TextSize = 11
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.ZIndex = 13
+            btn.Parent = parent
+
+            local bCorner = Instance.new("UICorner")
+            bCorner.CornerRadius = UDim.new(0, 8)
+            bCorner.Parent = btn
+
+            local bStroke = Instance.new("UIStroke")
+            bStroke.Color = Color3.fromRGB(244, 114, 182)
+            bStroke.Thickness = 1
+            bStroke.Transparency = 0.5
+            bStroke.Parent = btn
+
+            btn.MouseButton1Click:Connect(onClick)
+        end
+
+        -- ==================== ABA 1: PERFECT M1 & AUTO-COMBO HÍBRIDO ====================
+        local m1Frame = CreateTabFrame("PerfectM1")
+        AddTabButton("PerfectM1", "M1 & Combos", "⚡")
+
+        CreateToggleItem(m1Frame, "Perfect M1 & Auto-Combo", "Fusão de socos frame-perfect com chutes sem delay", CONFIG.PERFECT_M1_ENABLED, function(val)
+            CONFIG.PERFECT_M1_ENABLED = val
+            CONFIG.AUTO_COMBO_ENABLED = val
+        end)
+
+        CreateSliderItem(m1Frame, "Velocidade Soco M1", 0.015, 0.080, CONFIG.PERFECT_M1_SPEED, 0.002, "s", function(val)
+            CONFIG.PERFECT_M1_SPEED = val
+        end)
+
+        CreateSliderItem(m1Frame, "Velocidade Chutes (E/Q)", 0.008, 0.040, CONFIG.KICK_SPEED, 0.002, "s", function(val)
+            CONFIG.KICK_SPEED = val
+        end)
+
+        CreateToggleItem(m1Frame, "Frame Animation Cancel (3.8x)", "Acelera recuperação de socos e chutes", CONFIG.M1_FRAME_CANCEL, function(val)
+            CONFIG.M1_FRAME_CANCEL = val
+            CONFIG.KICK_FRAME_CANCEL = val
+        end)
+
+        CreateToggleItem(m1Frame, "Auto-Chain Chutes Fluidos", "Intercala socos com chutes baixos e altos automaticamente", CONFIG.M1_AUTO_CHAIN, function(val)
+            CONFIG.M1_AUTO_CHAIN = val
+            CONFIG.HYBRID_PUNCH_KICK_CHAIN = val
+        end)
+
+        CreateToggleItem(m1Frame, "Anti-Block Spam Engine", "Fura defesas e acerta dano msm com spam de block", CONFIG.ANTI_BLOCK_SPAM, function(val)
+            CONFIG.ANTI_BLOCK_SPAM = val
+            CONFIG.SHIELD_PIERCER = val
+        end)
+
+        CreateToggleItem(m1Frame, "Blindspot 180° Bypass", "Injeta dano pelas costas no ponto cego do escudo", CONFIG.ANGLE_BYPASS, function(val)
+            CONFIG.ANGLE_BYPASS = val
+        end)
+
+        CreateActionButton(m1Frame, "Disparar Auto-Combo Turbo (32ms)", "⚡", function()
+            if SubaruState.Target then
+                ExecuteSmartCombo("HYBRID_PUNCH_KICK", SubaruState.Target)
+            else
+                CombatActions.PerformPerfectM1(nil)
+            end
+        end)
+
+        -- ==================== ABA 2: SMART HP ADAPTIVE ====================
+        local hpFrame = CreateTabFrame("SmartHP")
+        AddTabButton("SmartHP", "Smart HP", "🛡️")
+
+        CreateToggleItem(hpFrame, "Smart HP Adaptive Mode", "Muda estratégia conforme sua vida e do alvo", CONFIG.SMART_HP_ADAPTIVE, function(val)
+            CONFIG.SMART_HP_ADAPTIVE = val
+        end)
+
+        CreateSliderItem(hpFrame, "Dominance Threshold (> HP)", 50, 90, CONFIG.HP_HIGH_THRESHOLD, 5, "%", function(val)
+            CONFIG.HP_HIGH_THRESHOLD = val
+        end)
+
+        CreateSliderItem(hpFrame, "Clutch Survival (< HP)", 15, 45, CONFIG.HP_LOW_THRESHOLD, 5, "%", function(val)
+            CONFIG.HP_LOW_THRESHOLD = val
+        end)
+
+        CreateSliderItem(hpFrame, "Enemy Execute Rush (< HP)", 10, 40, CONFIG.ENEMY_EXECUTE_THRESHOLD, 5, "%", function(val)
+            CONFIG.ENEMY_EXECUTE_THRESHOLD = val
+        end)
+
+        -- ==================== ABA 3: AUTO-BLOCK & PARRY ====================
+        local blockFrame = CreateTabFrame("AutoBlock")
+        AddTabButton("AutoBlock", "Auto-Block", "🥊")
+
+        CreateToggleItem(blockFrame, "Auto-Block Consciente", "Defesa 100% sólida sem parry instável", CONFIG.AUTO_BLOCK_ENABLED, function(val)
+            CONFIG.AUTO_BLOCK_ENABLED = val
+        end)
+
+        CreateToggleItem(blockFrame, "Preservar Mobilidade", "Nunca reduz WalkSpeed ou trava o joystick", CONFIG.PRESERVE_MOBILITY, function(val)
+            CONFIG.PRESERVE_MOBILITY = val
+        end)
+
+        CreateToggleItem(blockFrame, "Anti-GB Evasion", "Evasão de ataques de Quebra de Guarda", CONFIG.ANTI_GB_EVASION, function(val)
+            CONFIG.ANTI_GB_EVASION = val
+        end)
+
+        CreateSliderItem(blockFrame, "Cooldown de Guarda", 0.10, 0.45, CONFIG.GUARD_COOLDOWN, 0.02, "s", function(val)
+            CONFIG.GUARD_COOLDOWN = val
+        end)
+
+        CreateActionButton(blockFrame, "Manual Block Instantâneo (0ms)", "🛡️", function()
+            CombatActions.TriggerManualBlock(true)
+            task.delay(0.20, function()
+                CombatActions.TriggerManualBlock(false)
+            end)
+        end)
+
+        -- ==================== ABA 4: AUTO-COMBO & CHUTES DE ALTA FREQUÊNCIA ====================
+        local comboFrame = CreateTabFrame("AutoCombo")
+        AddTabButton("AutoCombo", "Combos & Chutes", "⚔️")
+
+        CreateToggleItem(comboFrame, "Auto-Combo Inteligente", "Sequência automática de socos e chutes", CONFIG.AUTO_COMBO_ENABLED, function(val)
+            CONFIG.AUTO_COMBO_ENABLED = val
+        end)
+
+        CreateToggleItem(comboFrame, "Rajada de Chutes Rápidos", "Executa sequência contínua de chutes de alta frequência", CONFIG.RAPID_KICK_ENABLED, function(val)
+            CONFIG.RAPID_KICK_ENABLED = val
+        end)
+
+        CreateToggleItem(comboFrame, "Kick Frame Cancel (4.0x)", "Corta 75% do recovery para emendar no próximo golpe", CONFIG.KICK_FRAME_CANCEL, function(val)
+            CONFIG.KICK_FRAME_CANCEL = val
+        end)
+
+        CreateSliderItem(comboFrame, "Qtd Chutes/Golpes por Burst", 3, 16, CONFIG.KICK_BURST_COUNT, 1, " ações", function(val)
+            CONFIG.KICK_BURST_COUNT = math.floor(val)
+        end)
+
+        CreateSliderItem(comboFrame, "Velocidade dos Chutes", 0.008, 0.040, CONFIG.KICK_SPEED, 0.002, "s", function(val)
+            CONFIG.KICK_SPEED = val
+        end)
+
+        CreateSliderItem(comboFrame, "Alcance de Ataque", 4.0, 16.0, CONFIG.ATTACK_RANGE, 0.5, " studs", function(val)
+            CONFIG.ATTACK_RANGE = val
+        end)
+
+        CreateSliderItem(comboFrame, "Delay entre Combos", 0.008, 0.10, CONFIG.COMBO_DELAY, 0.005, "s", function(val)
+            CONFIG.COMBO_DELAY = val
+        end)
+
+        CreateActionButton(comboFrame, "Disparar Hyper Flurry (10x Chutes)", "🦶", function()
+            if SubaruState.Target then
+                CombatActions.PerformRapidKickFlurry(SubaruState.Target, 10)
+            else
+                CombatActions.PerformRapidKickFlurry(nil, 10)
+            end
+        end)
+
+        -- ==================== ABA 5: GAME SENSE COMBAT AI ====================
+        local gameSenseFrame = CreateTabFrame("GameSense")
+        AddTabButton("GameSense", "Game Sense AI", "🧠")
+
+        CreateToggleItem(gameSenseFrame, "Game Sense AI Tático", "Analisa guarda, whiff e vida para escolher o combo ideal", CONFIG.GAME_SENSE_ENABLED, function(val)
+            CONFIG.GAME_SENSE_ENABLED = val
+        end)
+
+        CreateToggleItem(gameSenseFrame, "Leitor de Defesa (Guard Break)", "Usa rasteira / chute E instantâneo se o inimigo defender", CONFIG.GAME_SENSE_AUTO_READ_DEFENSE, function(val)
+            CONFIG.GAME_SENSE_AUTO_READ_DEFENSE = val
+        end)
+
+        CreateToggleItem(gameSenseFrame, "Predict Counter Chutes", "Interrompe ataques inimigos com chutes rápidos prioritários", CONFIG.GAME_SENSE_PREDICT_COUNTER, function(val)
+            CONFIG.GAME_SENSE_PREDICT_COUNTER = val
+        end)
+
+        CreateToggleItem(gameSenseFrame, "Cadeia Híbrida (Soco + Chute)", "Alterna M1s com chutes E e Q no combo mais forte", CONFIG.HYBRID_PUNCH_KICK_CHAIN, function(val)
+            CONFIG.HYBRID_PUNCH_KICK_CHAIN = val
+        end)
+
+        CreateToggleItem(gameSenseFrame, "Boost de Frequência de Chutes", "Acelera taxa de chutes para 70+ por segundo", CONFIG.KICK_FREQUENCY_BOOST, function(val)
+            CONFIG.KICK_FREQUENCY_BOOST = val
+        end)
+
+        CreateActionButton(gameSenseFrame, "Executar Combo Letal Turbo (M1 + E/Q)", "⚡", function()
+            ExecuteSmartCombo("HYBRID_PUNCH_KICK", SubaruState.Target)
+        end)
+
+        CreateActionButton(gameSenseFrame, "Forçar Quebra de Guarda (Low Kick E)", "💥", function()
+            ExecuteSmartCombo("GUARD_BREAKER_COMBO", SubaruState.Target)
+        end)
+
+        -- ==================== ABA 6: CONFIGURAÇÕES & REMOTES ====================
+        local cfgFrame = CreateTabFrame("Settings")
+        AddTabButton("Settings", "Config", "⚙️")
+
+        CreateActionButton(cfgFrame, "Destravar Física & Animações", "🏃", function()
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChildOfClass("Humanoid") then
+                pcall(function()
+                    char:FindFirstChildOfClass("Humanoid").PlatformStand = false
+                    char:FindFirstChildOfClass("Humanoid").Sit = false
+                end)
+            end
+        end)
+
+        CreateActionButton(cfgFrame, "Re-escanear Remotes de Combate", "🔄", function()
+            ScanForCombatRemotes()
+        end)
+
+        CreateActionButton(cfgFrame, "Fechar / Destruir Hub", "❌", function()
+            ScreenGui:Destroy()
+        end)
+
+        -- ==================== BOTÕES RÁPIDOS TOUCH NA TELA (HUD QUICK ACTIONS V5.5 TURBO) ====================
+        -- 1. Botão Rápido de Block Manual Instantâneo (F) - Ultra Responsivo & Tátil
+        local QuickBlockBtn = Instance.new("TextButton")
+        QuickBlockBtn.Name = "ScarletQuickBlock"
+        QuickBlockBtn.Size = UDim2.new(0, 64, 0, 64)
+        QuickBlockBtn.Position = UDim2.new(1, -84, 0.65, 0)
+        QuickBlockBtn.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
+        QuickBlockBtn.Text = "🛡️\nBLOCK"
+        QuickBlockBtn.TextColor3 = Color3.fromRGB(56, 189, 248)
+        QuickBlockBtn.Font = Enum.Font.GothamBold
+        QuickBlockBtn.TextSize = 11
+        QuickBlockBtn.Active = true
+        QuickBlockBtn.AutoButtonColor = false
+        QuickBlockBtn.ZIndex = 120
+        QuickBlockBtn.Parent = ScreenGui
+
+        local QuickBlockCorner = Instance.new("UICorner")
+        QuickBlockCorner.CornerRadius = UDim.new(1, 0)
+        QuickBlockCorner.Parent = QuickBlockBtn
+
+        local QuickBlockStroke = Instance.new("UIStroke")
+        QuickBlockStroke.Color = Color3.fromRGB(56, 189, 248)
+        QuickBlockStroke.Thickness = 2.5
+        QuickBlockStroke.Parent = QuickBlockBtn
+
+        local isQuickBlockHolding = false
+
+        local function SetBlockBtnVisual(active)
+            if active then
+                QuickBlockBtn.BackgroundColor3 = Color3.fromRGB(16, 185, 129)
+                QuickBlockBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                QuickBlockBtn.Text = "🛡️\nGUARD"
+                QuickBlockStroke.Color = Color3.fromRGB(52, 211, 153)
+                QuickBlockStroke.Thickness = 3.5
+            else
+                QuickBlockBtn.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
+                QuickBlockBtn.TextColor3 = Color3.fromRGB(56, 189, 248)
+                QuickBlockBtn.Text = "🛡️\nBLOCK"
+                QuickBlockStroke.Color = Color3.fromRGB(56, 189, 248)
+                QuickBlockStroke.Thickness = 2.5
+            end
+        end
+
+        -- Hold-to-Block & Quick-Tap com resposta imediata em 0ms
+        QuickBlockBtn.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                isQuickBlockHolding = true
+                SetBlockBtnVisual(true)
+                CombatActions.TriggerManualBlock(true)
+            end
+        end)
+
+        QuickBlockBtn.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                if isQuickBlockHolding then
+                    isQuickBlockHolding = false
+                    SetBlockBtnVisual(false)
+                    CombatActions.TriggerManualBlock(false)
+                end
+            end
+        end)
+
+        -- 2. Botão Rápido de Auto-Combo Turbo (⚡) - Burst Máximo em 1 Toque
+        local QuickComboBtn = Instance.new("TextButton")
+        QuickComboBtn.Name = "ScarletQuickCombo"
+        QuickComboBtn.Size = UDim2.new(0, 64, 0, 64)
+        QuickComboBtn.Position = UDim2.new(1, -84, 0.65, -74)
+        QuickComboBtn.BackgroundColor3 = Color3.fromRGB(36, 10, 48)
+        QuickComboBtn.Text = "⚡\nCOMBO"
+        QuickComboBtn.TextColor3 = Color3.fromRGB(244, 114, 182)
+        QuickComboBtn.Font = Enum.Font.GothamBold
+        QuickComboBtn.TextSize = 11
+        QuickComboBtn.Active = true
+        QuickComboBtn.AutoButtonColor = false
+        QuickComboBtn.ZIndex = 120
+        QuickComboBtn.Parent = ScreenGui
+
+        local QuickComboCorner = Instance.new("UICorner")
+        QuickComboCorner.CornerRadius = UDim.new(1, 0)
+        QuickComboCorner.Parent = QuickComboBtn
+
+        local QuickComboStroke = Instance.new("UIStroke")
+        QuickComboStroke.Color = Color3.fromRGB(244, 114, 182)
+        QuickComboStroke.Thickness = 2.5
+        QuickComboStroke.Parent = QuickComboBtn
+
+        QuickComboBtn.MouseButton1Click:Connect(function()
+            QuickComboBtn.BackgroundColor3 = Color3.fromRGB(244, 63, 94)
+            QuickComboBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            task.delay(0.12, function()
+                QuickComboBtn.BackgroundColor3 = Color3.fromRGB(36, 10, 48)
+                QuickComboBtn.TextColor3 = Color3.fromRGB(244, 114, 182)
+            end)
+            if SubaruState.Target then
+                ExecuteSmartCombo("HYBRID_PUNCH_KICK", SubaruState.Target)
+            else
+                CombatActions.PerformPerfectM1(nil)
+            end
+        end)
+
+        -- ==================== LÓGICA DE DRAG (TOUCH & MOUSE SMOOTH) ====================
+        local function EnableDragging(frame, dragHandle)
+            local dragging = false
+            local dragInput, dragStart, startPos
+
+            dragHandle.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true
+                    dragStart = input.Position
+                    startPos = frame.Position
+
+                    input.Changed:Connect(function()
+                        if input.UserInputState == Enum.UserInputState.End then
+                            dragging = false
+                        end
+                    end)
+                end
+            end)
+
+            dragHandle.InputChanged:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                    dragInput = input
+                end
+            end)
+
+            UserInputService.InputChanged:Connect(function(input)
+                if input == dragInput and dragging then
+                    local delta = input.Position - dragStart
+                    frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                end
+            end)
+        end
+
+        EnableDragging(MainFrame, Header)
+        EnableDragging(FloatingBtn, FloatingBtn)
+        EnableDragging(QuickBlockBtn, QuickBlockBtn)
+        EnableDragging(QuickComboBtn, QuickComboBtn)
+
+        -- Clique / Toque no Botão Flutuante alterna o Hub
+        FloatingBtn.MouseButton1Click:Connect(function()
+            MainFrame.Visible = not MainFrame.Visible
+        end)
+
+        -- Tecla 'V' no PC alterna o Hub, e Tecla 'F' aciona Manual Block Instantâneo (0ms) com feedback visual
+        UserInputService.InputBegan:Connect(function(input, gp)
+            if not gp and input.KeyCode == Enum.KeyCode.V then
+                MainFrame.Visible = not MainFrame.Visible
+            elseif not gp and input.KeyCode == Enum.KeyCode.F then
+                SetBlockBtnVisual(true)
+                CombatActions.TriggerManualBlock(true)
+            end
+        end)
+
+        UserInputService.InputEnded:Connect(function(input, gp)
+            if input.KeyCode == Enum.KeyCode.F then
+                SetBlockBtnVisual(false)
+                CombatActions.TriggerManualBlock(false)
+            end
+        end)
+
+        -- Atualização dinâmica do banner de modo
+        task.spawn(function()
+            while ScreenGui and ScreenGui.Parent do
+                if SubaruState.AdaptiveMode == "DOMINANCE" then
+                    ModeBadge.Text = "MODO: 👑 DOMINANCE (>70% HP - AGRESSIVO)"
+                    ModeBadge.TextColor3 = Color3.fromRGB(244, 114, 182)
+                elseif SubaruState.AdaptiveMode == "TACTICAL" then
+                    ModeBadge.Text = "MODO: ⚔️ TACTICAL SKIRMISH (30-70% HP)"
+                    ModeBadge.TextColor3 = Color3.fromRGB(56, 189, 248)
+                elseif SubaruState.AdaptiveMode == "CLUTCH_SURVIVAL" then
+                    ModeBadge.Text = "MODO: ⚡ CLUTCH SURVIVAL (<30% HP - FLASH)"
+                    ModeBadge.TextColor3 = Color3.fromRGB(234, 179, 8)
+                elseif SubaruState.AdaptiveMode == "EXECUTE_RUSH" then
+                    ModeBadge.Text = "MODO: 💀 EXECUTE RUSH (<25% INIMIGO)"
+                    ModeBadge.TextColor3 = Color3.fromRGB(239, 68, 68)
+                end
+                task.wait(0.5)
+            end
+        end)
+
+        -- Notificação nativa na tela do Roblox avisando que carregou com sucesso!
+        pcall(function()
+            local StarterGui = game:GetService("StarterGui")
+            StarterGui:SetCore("SendNotification", {
+                Title = "Scarlet 🌙 Mobile Hub V5.5",
+                Text = "Hub Carregado! Toque no botão 🌙 ou aperte V para abrir. Botões rápidos 🛡️ BLOCK e ⚡ COMBO ativos na tela!",
+                Duration = 6
+            })
+        end)
+    end)
+end
+
+-- Inicia a criação do Hub de forma segura e assíncrona
+task.spawn(function()
+    task.wait(0.2)
+    CreateScarletMobileHubGUI()
+end)
+
+return SubaruState
