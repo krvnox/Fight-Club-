@@ -1,0 +1,1438 @@
+--[[
+    ================================================================================
+    SCARLET MOBILE HUB V6.0 - BRUTAL COMBAT & OBSIDIAN UI EDITION
+    ================================================================================
+    • BRUTAL COMBO ENGINE: 6 Rotas Letais + Rota Customizada Zero-Gap
+    • FRAME CANCEL MATRIX: Cancelamento 5.2x em socos M1 & chutes E/Q
+    • 360° BLINDSPOT TRIANGULATION: Back 180° + Flanks ±90° + Top-Down
+    • ARMOR SHATTER ENGINE: Destrói spam de Block com Guard-Crush imediato
+    • SMART HP ADAPTIVE: Dominance >70% | Tactical | Clutch <30% | Execute <25%
+    • OBSIDIAN MOBILE GUI V6: Live Target HUD, Animated Switches, Preset Bar
+    • QUICK ACTION CLUSTER: Block 0ms, Brutal Combo, Guard Shatter, Flurry
+
+    Preset Ativo: EXECUTIONER | Tema: Obsidian Crimson
+    Suporte: Delta Mobile, Arceus X, Solara, Fluxus, Wave, Celery, Codex e PC
+]]
+
+if not game:IsLoaded() then
+    pcall(function() game.Loaded:Wait() end)
+end
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then
+    repeat
+        task.wait(0.1)
+        LocalPlayer = Players.LocalPlayer
+    until LocalPlayer
+end
+
+-- ==================== CONFIGURAÇÕES GLOBAIS SCARLET V6.0 ====================
+local CONFIG = {
+    ENABLED = true,
+    AUTO_COMBO_ENABLED = true,
+    ACTIVE_PRESET = "executioner",
+
+    -- COMBAT GAME SENSE AI & BRUTAL ROUTING
+    GAME_SENSE_ENABLED = true,
+    GAME_SENSE_AUTO_READ_DEFENSE = true,
+    GAME_SENSE_PREDICT_COUNTER = true,
+    GAME_SENSE_DYNAMIC_COMBO_SELECTION = true,
+    HYBRID_PUNCH_KICK_CHAIN = true,
+    KICK_FREQUENCY_BOOST = true,
+
+    -- PERFECT M1 ENGINE & FRAME CANCEL
+    PERFECT_M1_ENABLED = true,
+    PERFECT_M1_SPEED = 0.018,
+    M1_FRAME_CANCEL = true,
+    M1_CANCEL_MULT = 5,
+    M1_AUTO_CHAIN = true,
+
+    -- ULTRA RAPID KICK FLURRY ENGINE
+    RAPID_KICK_ENABLED = true,
+    KICK_BURST_COUNT = 12,
+    KICK_SPEED = 0.01,
+    KICK_FRAME_CANCEL = true,
+    KICK_CANCEL_MULT = 5.2,
+
+    -- BRUTAL V6.0 EXTENSIONS
+    BRUTAL_ZERO_GAP_CHAIN = true,
+    BLINDSPOT_360_MATRIX = true,
+    STAGGER_LOCK_LOOP = true,
+    SHIELD_PIERCER = true,
+    ANGLE_BYPASS = true,
+    ANTI_BLOCK_SPAM = true,
+
+    -- SMART HP ADAPTIVE
+    SMART_HP_ADAPTIVE = true,
+    HP_HIGH_THRESHOLD = 70,
+    HP_LOW_THRESHOLD = 30,
+    ENEMY_EXECUTE_THRESHOLD = 25,
+    CLUTCH_FLASH_PARRY_SPEED = 0.022,
+
+    -- AUTO-BLOCK & MOBILITY
+    AUTO_BLOCK_ENABLED = true,
+    PRESERVE_MOBILITY = true,
+    ANTI_GB_EVASION = true,
+    WHIFF_PUNISH_ENABLED = true,
+    MAX_MELEE_REACH = 6.5,
+    GUARD_COOLDOWN = 0.25,
+    HUMANIZE_BLOCK = false,
+    HUMAN_REACTION_DELAY = 0.08,
+    HUMAN_HOLD_DURATION = 0.1,
+
+    -- RANGES & ANTI-KICK
+    DETECTION_RANGE = 45,
+    ATTACK_RANGE = 14,
+    COMBO_DELAY = 0.004,
+    ANTI_KICK_SAFETY = true,
+    PACKET_RATE_CAP = 36,
+    LOCK_HUD_BUTTONS = true,
+
+    TOGGLE_KEY = "V",
+    REMOTE_NAME = "RemoteEvent",
+    PACKET_FOLDER = "Packet"
+}
+
+-- ==================== ROTAS DE COMBOS BRUTAIS EVOLUÍDAS V6.0 ====================
+local BRUTAL_COMBO_ROUTES = {
+    CRIMSON_EXECUTION = { "PUNCH", "PUNCH", "LOW_KICK", "BLINDSPOT_M1", "HIGH_KICK", "LOW_KICK", "HIGH_KICK", "HYPER_FLURRY_HIT" },
+    ARMOR_SHATTER_LOOP = { "GUARD_CRUSH", "LOW_KICK", "BLINDSPOT_M1", "BLINDSPOT_M1", "HIGH_KICK", "LOW_KICK", "HIGH_KICK" },
+    WHIFF_PUNISH_OBLITERATE = { "HIGH_KICK", "BLINDSPOT_M1", "PUNCH", "LOW_KICK", "HIGH_KICK", "HYPER_FLURRY_HIT", "HYPER_FLURRY_HIT" },
+    EXECUTE_KILL_CONFIRM = { "BLINDSPOT_M1", "HIGH_KICK", "LOW_KICK", "HYPER_FLURRY_HIT", "HYPER_FLURRY_HIT", "HIGH_KICK", "GUARD_CRUSH", "HIGH_KICK" },
+    CLUTCH_COUNTER_REVERSAL = { "LOW_KICK", "BLINDSPOT_M1", "HIGH_KICK", "LOW_KICK" },
+    FRAME_CANCEL_ENDLESS = { "PUNCH", "LOW_KICK", "BLINDSPOT_M1", "HIGH_KICK", "PUNCH", "LOW_KICK", "HIGH_KICK", "HYPER_FLURRY_HIT", "HYPER_FLURRY_HIT", "HIGH_KICK" },
+    CUSTOM_BRUTAL_ROUTE = { "PUNCH", "LOW_KICK", "BLINDSPOT_M1", "HIGH_KICK", "GUARD_CRUSH", "HIGH_KICK", "HYPER_FLURRY_HIT" }
+}
+
+-- ==================== ESTADO GLOBAL DO SISTEMA ====================
+local ScarletState = {
+    Enabled = CONFIG.ENABLED,
+    CurrentVersion = "Scarlet-V6.0-BrutalEdition",
+    IsBlocking = false,
+    IsAttacking = false,
+    PriorityMode = false,
+    Target = nil,
+    TargetName = "Nenhum Alvo",
+    TargetHP = 100,
+    TargetDistance = 999,
+    EnemyState = "NEUTRAL",
+    ActiveComboName = "CRIMSON_EXECUTION",
+    AdaptiveMode = "DOMINANCE",
+    TotalHitsLanded = 0,
+    LastAction = 0,
+    LastComboTime = 0,
+    LastM1Time = 0,
+    LastBlockTime = 0,
+    LastBlockFinishedTime = 0,
+    LastGuardBreakTime = 0,
+    LastRemoteSendTime = 0,
+    RecentPacketCount = 0,
+    LastPacketReset = 0,
+    BlockThread = nil,
+    ComboHitCount = 0,
+    HandledAttacks = {},
+    TargetBlockHistory = {}
+}
+
+-- ==================== DISCOVERY DE REMOTES UNIVERSAL ====================
+local PacketRemote = nil
+local DiscoveredCombatRemotes = {}
+
+local function ScanForCombatRemotes()
+    DiscoveredCombatRemotes = {}
+    pcall(function()
+        local folder = ReplicatedStorage:FindFirstChild(CONFIG.PACKET_FOLDER)
+        if folder then
+            local r = folder:FindFirstChild(CONFIG.REMOTE_NAME) or folder:FindFirstChild("Packet") or folder:FindFirstChildOfClass("RemoteEvent")
+            if r then PacketRemote = r end
+        end
+    end)
+    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+            local n = obj.Name:lower()
+            if n:find("block") or n:find("guard") or n:find("parry") or n:find("defend") or n:find("combat") or n:find("action") or n:find("packet") or n:find("skill") or n:find("hit") or n:find("attack") or n:find("m1") then
+                table.insert(DiscoveredCombatRemotes, obj)
+                if not PacketRemote and (n:find("packet") or n == CONFIG.REMOTE_NAME:lower()) then
+                    PacketRemote = obj
+                end
+            end
+        end
+    end
+    if not PacketRemote and #DiscoveredCombatRemotes > 0 then
+        PacketRemote = DiscoveredCombatRemotes[1]
+    end
+end
+ScanForCombatRemotes()
+
+-- ==================== BUFFERS BINÁRIOS (OPCODES) ====================
+local ACTION_BUFFERS = {
+    PUNCH       = buffer.fromstring("\005\003lmb\000\000\000\000\000"),
+    HIGH_KICK   = buffer.fromstring("\005\bkeypress\v\001q\000\000\000\000"),
+    LOW_KICK    = buffer.fromstring("\005\bkeypress\v\001e\000\000\000\000"),
+    BLOCK_ON    = buffer.fromstring("\005\bkeypress\v\001f\000\000\000\000"),
+    BLOCK_OFF   = buffer.fromstring("\005\bkeyrelease\v\001f\000\000\000\000")
+}
+
+-- ==================== PRESERVAÇÃO DE MOBILIDADE NATIVA ====================
+local function EnforcePlayerMobility()
+    if not CONFIG.PRESERVE_MOBILITY then return end
+    pcall(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not hum or hum.Health <= 0 or not root then return end
+        if hum.PlatformStand then hum.PlatformStand = false end
+        if hum.Sit then hum.Sit = false end
+        if root.Anchored then root.Anchored = false end
+    end)
+end
+RunService.Stepped:Connect(EnforcePlayerMobility)
+
+-- ==================== NÚCLEO DE COMBATE BRUTAL V6.0 ====================
+local CombatActions = {}
+local isBlockQueued = false
+
+function CombatActions.Send(actionBuffer)
+    if not PacketRemote then return end
+    local now = tick()
+    if CONFIG.ANTI_KICK_SAFETY then
+        if now - ScarletState.LastPacketReset > 1 then
+            ScarletState.RecentPacketCount = 0
+            ScarletState.LastPacketReset = now
+        end
+        if ScarletState.RecentPacketCount >= (CONFIG.PACKET_RATE_CAP or 36) then return end
+        ScarletState.RecentPacketCount = ScarletState.RecentPacketCount + 1
+    end
+    pcall(function() PacketRemote:FireServer(actionBuffer) end)
+    ScarletState.LastAction = now
+    ScarletState.LastRemoteSendTime = now
+end
+
+-- Injeção de Triangulação 360° (Back 180°, Left -90°, Right +90°, Overhead)
+function CombatActions.FireBlindspotMatrix(targetChar, moveTag)
+    if not targetChar then return end
+    local tRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    if not tRoot then return end
+
+    local vectors = {
+        tRoot.CFrame * CFrame.new(0, 0, 1.45) * CFrame.Angles(0, math.pi, 0),
+        tRoot.CFrame * CFrame.new(-1.45, 0, 0) * CFrame.Angles(0, math.rad(-90), 0),
+        tRoot.CFrame * CFrame.new(1.45, 0, 0) * CFrame.Angles(0, math.rad(90), 0)
+    }
+
+    if CONFIG.BLINDSPOT_360_MATRIX then
+        table.insert(vectors, tRoot.CFrame * CFrame.new(0, 1.3, 0.8) * CFrame.Angles(math.rad(-45), math.pi, 0))
+    end
+
+    for _, rem in ipairs(DiscoveredCombatRemotes) do
+        pcall(function()
+            if rem:IsA("RemoteEvent") then
+                local rn = rem.Name:lower()
+                if rn:find("hit") or rn:find("attack") or rn:find("combat") or rn:find("m1") or rn:find("damage") or rn:find("kick") then
+                    for _, cf in ipairs(vectors) do
+                        rem:FireServer(targetChar, cf, moveTag or "M1")
+                        rem:FireServer("Hit", targetChar, cf)
+                    end
+                end
+            end
+        end)
+    end
+end
+
+function CombatActions.PerformPerfectM1(targetChar, forceBlindspot)
+    local now = tick()
+    local interval = CONFIG.PERFECT_M1_SPEED or 0.018
+
+    if ScarletState.AdaptiveMode == "DOMINANCE" or ScarletState.AdaptiveMode == "EXECUTE_RUSH" then
+        interval = math.max(0.012, interval * 0.72)
+    elseif ScarletState.AdaptiveMode == "CLUTCH_SURVIVAL" then
+        interval = math.max(0.016, interval * 0.85)
+    end
+    if CONFIG.BRUTAL_ZERO_GAP_CHAIN then
+        interval = math.max(0.011, interval * 0.85)
+    end
+
+    if now - ScarletState.LastM1Time < interval then return end
+    ScarletState.LastM1Time = now
+    ScarletState.LastAction = now
+    ScarletState.ComboHitCount = ((ScarletState.ComboHitCount or 0) % 5) + 1
+    ScarletState.TotalHitsLanded = ScarletState.TotalHitsLanded + 1
+
+    CombatActions.Send(ACTION_BUFFERS.PUNCH)
+
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char then
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then tool:Activate() end
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum and CONFIG.M1_FRAME_CANCEL then
+                local cancelMult = CONFIG.M1_CANCEL_MULT or 5.0
+                for _, tr in ipairs(hum:GetPlayingAnimationTracks()) do
+                    local tn = tostring(tr.Name):lower()
+                    if tn:find("punch") or tn:find("m1") or tn:find("attack") or tn:find("swing") then
+                        tr:AdjustSpeed(cancelMult)
+                    end
+                end
+            end
+        end
+    end)
+
+    if targetChar then
+        local tRoot = targetChar:FindFirstChild("HumanoidRootPart")
+        local isGuarding = (targetChar:GetAttribute("Blocking") or targetChar:GetAttribute("Guard") or targetChar:GetAttribute("IsBlocking")) == true
+        for _, rem in ipairs(DiscoveredCombatRemotes) do
+            pcall(function()
+                if rem:IsA("RemoteEvent") then
+                    local rn = rem.Name:lower()
+                    if rn:find("hit") or rn:find("attack") or rn:find("combat") or rn:find("m1") or rn:find("damage") or rn:find("punch") then
+                        if tRoot then
+                            rem:FireServer(targetChar, tRoot.CFrame, "M1")
+                            rem:FireServer("Hit", targetChar, tRoot.CFrame)
+                            rem:FireServer("Attack", targetChar)
+                            rem:FireServer("M1", targetChar)
+                        else
+                            rem:FireServer("Attack")
+                            rem:FireServer("M1")
+                        end
+                    end
+                end
+            end)
+        end
+        if forceBlindspot or isGuarding or CONFIG.SHIELD_PIERCER or CONFIG.ANGLE_BYPASS then
+            CombatActions.FireBlindspotMatrix(targetChar, "M1")
+        end
+        if isGuarding and CONFIG.ANTI_BLOCK_SPAM then
+            task.spawn(function()
+                CombatActions.PerformLowKick(targetChar)
+            end)
+        end
+    end
+
+    EnforcePlayerMobility()
+end
+
+function CombatActions.PerformLowKick(targetChar)
+    ScarletState.LastAction = tick()
+    ScarletState.TotalHitsLanded = ScarletState.TotalHitsLanded + 1
+    CombatActions.Send(ACTION_BUFFERS.LOW_KICK)
+
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            local animator = hum and (hum:FindFirstChildOfClass("Animator") or hum)
+            if animator then
+                for _, obj in ipairs(char:GetDescendants()) do
+                    if obj:IsA("Animation") then
+                        local an = obj.Name:lower()
+                        if an:find("lowkick") or an:find("sweep") or (an:find("kick") and not an:find("high")) or an:find("leg") or an:find("skill1") or an == "e" then
+                            local track = animator:LoadAnimation(obj)
+                            track.Priority = Enum.AnimationPriority.Action
+                            track.Looped = false
+                            track:Play(0.01, 1, 1.5)
+                            if CONFIG.KICK_FRAME_CANCEL then
+                                task.delay(0.03, function()
+                                    if track.IsPlaying then track:AdjustSpeed(CONFIG.KICK_CANCEL_MULT or 5.2) end
+                                end)
+                            end
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    for _, rem in ipairs(DiscoveredCombatRemotes) do
+        pcall(function()
+            if rem:IsA("RemoteEvent") then
+                local rn = rem.Name:lower()
+                if rn:find("kick") or rn:find("guardbreak") or rn:find("break") or rn:find("skill") or rn:find("attack") or rn:find("hit") or rn:find("e") or rn:find("combat") then
+                    if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
+                        local tRoot = targetChar.HumanoidRootPart
+                        rem:FireServer(targetChar, tRoot.CFrame, "LowKick")
+                        rem:FireServer("LowKick", targetChar, tRoot.CFrame)
+                        rem:FireServer("GuardBreak", targetChar, tRoot.CFrame)
+                        rem:FireServer("Sweep", targetChar, tRoot.CFrame)
+                        rem:FireServer("E", targetChar)
+                        rem:FireServer({ Action = "LowKick", Target = targetChar, Key = "E" })
+                    else
+                        rem:FireServer("LowKick")
+                        rem:FireServer("GuardBreak")
+                        rem:FireServer("E")
+                    end
+                end
+            end
+        end)
+    end
+
+    if targetChar and CONFIG.BLINDSPOT_360_MATRIX then
+        CombatActions.FireBlindspotMatrix(targetChar, "LowKick")
+    end
+    EnforcePlayerMobility()
+end
+
+function CombatActions.PerformHighKick(targetChar)
+    ScarletState.LastAction = tick()
+    ScarletState.TotalHitsLanded = ScarletState.TotalHitsLanded + 1
+    CombatActions.Send(ACTION_BUFFERS.HIGH_KICK)
+
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            local animator = hum and (hum:FindFirstChildOfClass("Animator") or hum)
+            if animator then
+                for _, obj in ipairs(char:GetDescendants()) do
+                    if obj:IsA("Animation") then
+                        local an = obj.Name:lower()
+                        if an:find("highkick") or an:find("heavy") or an:find("finisher") or (an:find("kick") and an:find("high")) or an:find("skill2") or an == "q" then
+                            local track = animator:LoadAnimation(obj)
+                            track.Priority = Enum.AnimationPriority.Action
+                            track.Looped = false
+                            track:Play(0.01, 1, 1.5)
+                            if CONFIG.KICK_FRAME_CANCEL then
+                                task.delay(0.03, function()
+                                    if track.IsPlaying then track:AdjustSpeed(CONFIG.KICK_CANCEL_MULT or 5.2) end
+                                end)
+                            end
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    for _, rem in ipairs(DiscoveredCombatRemotes) do
+        pcall(function()
+            if rem:IsA("RemoteEvent") then
+                local rn = rem.Name:lower()
+                if rn:find("kick") or rn:find("highkick") or rn:find("heavy") or rn:find("finisher") or rn:find("skill") or rn:find("q") or rn:find("combat") then
+                    if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
+                        local tRoot = targetChar.HumanoidRootPart
+                        rem:FireServer(targetChar, tRoot.CFrame, "HighKick")
+                        rem:FireServer("HighKick", targetChar, tRoot.CFrame)
+                        rem:FireServer("Heavy", targetChar, tRoot.CFrame)
+                        rem:FireServer("Q", targetChar)
+                        rem:FireServer({ Action = "HighKick", Target = targetChar, Key = "Q" })
+                    else
+                        rem:FireServer("HighKick")
+                        rem:FireServer("Heavy")
+                        rem:FireServer("Q")
+                    end
+                end
+            end
+        end)
+    end
+
+    if targetChar and CONFIG.BLINDSPOT_360_MATRIX then
+        CombatActions.FireBlindspotMatrix(targetChar, "HighKick")
+    end
+    EnforcePlayerMobility()
+end
+
+function CombatActions.PerformGuardCrush(targetChar)
+    CombatActions.PerformLowKick(targetChar)
+    if targetChar then
+        CombatActions.FireBlindspotMatrix(targetChar, "GuardBreak")
+    end
+    task.delay(0.015, function()
+        CombatActions.PerformPerfectM1(targetChar, true)
+    end)
+end
+
+function CombatActions.PerformRapidKickFlurry(targetChar, customCount)
+    local count = customCount or CONFIG.KICK_BURST_COUNT or 12
+    local speed = math.max(0.007, CONFIG.KICK_SPEED or 0.010)
+    task.spawn(function()
+        for i = 1, count do
+            if targetChar and (not targetChar:FindFirstChild("Humanoid") or targetChar.Humanoid.Health <= 0) then break end
+            if ScarletState.PriorityMode or ScarletState.IsBlocking then break end
+            if i % 2 == 1 then
+                CombatActions.PerformLowKick(targetChar)
+            else
+                CombatActions.PerformHighKick(targetChar)
+            end
+            task.wait(speed)
+        end
+    end)
+end
+
+function CombatActions.DispatchMove(moveToken, targetChar)
+    if moveToken == "PUNCH" then
+        CombatActions.PerformPerfectM1(targetChar, false)
+    elseif moveToken == "BLINDSPOT_M1" then
+        CombatActions.PerformPerfectM1(targetChar, true)
+    elseif moveToken == "LOW_KICK" then
+        CombatActions.PerformLowKick(targetChar)
+    elseif moveToken == "HIGH_KICK" then
+        CombatActions.PerformHighKick(targetChar)
+    elseif moveToken == "GUARD_CRUSH" then
+        CombatActions.PerformGuardCrush(targetChar)
+    elseif moveToken == "HYPER_FLURRY_HIT" then
+        if (ScarletState.ComboHitCount % 2) == 0 then
+            CombatActions.PerformLowKick(targetChar)
+        else
+            CombatActions.PerformHighKick(targetChar)
+        end
+    else
+        CombatActions.PerformPerfectM1(targetChar, false)
+    end
+end
+
+-- ==================== AUTO-BLOCK & MANUAL BLOCK 0MS ====================
+function CombatActions.FireAllBlockRemotes(state)
+    local now = tick()
+    if CONFIG.ANTI_KICK_SAFETY and (now - ScarletState.LastRemoteSendTime < 0.008) then return end
+    ScarletState.LastRemoteSendTime = now
+    for _, rem in ipairs(DiscoveredCombatRemotes) do
+        pcall(function()
+            if rem:IsA("RemoteEvent") then
+                local rn = rem.Name:lower()
+                if rn:find("block") or rn:find("guard") or rn:find("parry") or rn:find("defend") then
+                    rem:FireServer(state)
+                    rem:FireServer("Block", state)
+                    rem:FireServer({ Action = "Block", State = state, Key = "F" })
+                end
+            end
+        end)
+    end
+end
+
+function CombatActions.SetBlockState(state)
+    ScarletState.IsBlocking = state
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum and not state then
+            pcall(function() hum.PlatformStand = false; hum.Sit = false end)
+        end
+        pcall(function()
+            char:SetAttribute("Blocking", state)
+            char:SetAttribute("Guard", state)
+            char:SetAttribute("IsBlocking", state)
+            LocalPlayer:SetAttribute("Blocking", state)
+        end)
+    end
+    if state then
+        CombatActions.Send(ACTION_BUFFERS.BLOCK_ON)
+        CombatActions.FireAllBlockRemotes(true)
+    else
+        CombatActions.Send(ACTION_BUFFERS.BLOCK_OFF)
+        CombatActions.FireAllBlockRemotes(false)
+    end
+end
+
+function CombatActions.ReleaseBlock()
+    isBlockQueued = false
+    if ScarletState.BlockThread then
+        task.cancel(ScarletState.BlockThread)
+        ScarletState.BlockThread = nil
+    end
+    ScarletState.LastBlockFinishedTime = tick()
+    CombatActions.SetBlockState(false)
+end
+
+function CombatActions.TriggerManualBlock(state)
+    isBlockQueued = false
+    if ScarletState.BlockThread then
+        task.cancel(ScarletState.BlockThread)
+        ScarletState.BlockThread = nil
+    end
+    if state then
+        ScarletState.IsAttacking = false
+        ScarletState.IsBlocking = true
+        ScarletState.LastBlockTime = tick()
+        CombatActions.SetBlockState(true)
+        pcall(function()
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                for _, tr in ipairs(hum:GetPlayingAnimationTracks()) do
+                    local tn = tostring(tr.Name):lower()
+                    if tn:find("block") or tn:find("guard") or tn:find("parry") then
+                        tr:AdjustSpeed(5.0)
+                    elseif tn:find("punch") or tn:find("m1") or tn:find("kick") then
+                        tr:Stop(0.01)
+                    end
+                end
+            end
+        end)
+    else
+        CombatActions.ReleaseBlock()
+    end
+end
+
+function CombatActions.TriggerAutoBlock(attackKey)
+    if not CONFIG.AUTO_BLOCK_ENABLED then return end
+    if ScarletState.IsAttacking or ScarletState.IsBlocking or isBlockQueued then return end
+    local now = tick()
+    local minCooldown = CONFIG.GUARD_COOLDOWN or 0.25
+    if now - ScarletState.LastBlockFinishedTime < minCooldown then return end
+    if now - ScarletState.LastBlockTime < minCooldown then return end
+    if attackKey and ScarletState.HandledAttacks[attackKey] and (now - ScarletState.HandledAttacks[attackKey] < 0.70) then return end
+    if attackKey then ScarletState.HandledAttacks[attackKey] = now end
+
+    ScarletState.LastBlockTime = now
+    isBlockQueued = true
+
+    local holdTime = 0.11
+    local reactDelay = 0.0
+    if ScarletState.AdaptiveMode == "CLUTCH_SURVIVAL" then
+        holdTime = CONFIG.CLUTCH_FLASH_PARRY_SPEED or 0.022
+        reactDelay = 0.0
+    elseif CONFIG.HUMANIZE_BLOCK then
+        reactDelay = math.max(0.01, (CONFIG.HUMAN_REACTION_DELAY or 0.08) + (math.random(-8, 12) / 1000))
+        holdTime = math.max(0.09, (CONFIG.HUMAN_HOLD_DURATION or 0.10) + (math.random(-10, 10) / 1000))
+    end
+
+    task.delay(reactDelay, function()
+        isBlockQueued = false
+        if not ScarletState.Enabled or ScarletState.IsAttacking then return end
+        CombatActions.SetBlockState(true)
+        if ScarletState.BlockThread then task.cancel(ScarletState.BlockThread) end
+        ScarletState.BlockThread = task.delay(holdTime, function()
+            CombatActions.ReleaseBlock()
+        end)
+    end)
+end
+
+-- ==================== GAME SENSE AI V6.0 ====================
+local GameSense = {}
+
+function GameSense.UpdateAdaptiveMode(localHpPercent, enemyHpPercent)
+    if not CONFIG.SMART_HP_ADAPTIVE then
+        ScarletState.AdaptiveMode = "DOMINANCE"
+        return "DOMINANCE"
+    end
+    if enemyHpPercent and enemyHpPercent <= (CONFIG.ENEMY_EXECUTE_THRESHOLD or 25) then
+        ScarletState.AdaptiveMode = "EXECUTE_RUSH"
+        return "EXECUTE_RUSH"
+    end
+    if localHpPercent <= (CONFIG.HP_LOW_THRESHOLD or 30) then
+        ScarletState.AdaptiveMode = "CLUTCH_SURVIVAL"
+        return "CLUTCH_SURVIVAL"
+    elseif localHpPercent >= (CONFIG.HP_HIGH_THRESHOLD or 70) then
+        ScarletState.AdaptiveMode = "DOMINANCE"
+        return "DOMINANCE"
+    else
+        ScarletState.AdaptiveMode = "TACTICAL"
+        return "TACTICAL"
+    end
+end
+
+function GameSense.AnalyzeTarget(targetChar)
+    local analysis = {
+        isValid = false,
+        distance = 999,
+        isFacingUs = false,
+        isAttacking = false,
+        attackKey = nil,
+        isGuardBreak = false,
+        isWhiffRecovery = false,
+        isBlocking = false,
+        isBlockSpamming = false,
+        healthPercent = 100,
+        optimalComboRoute = "CRIMSON_EXECUTION"
+    }
+    if not targetChar or not targetChar:FindFirstChild("HumanoidRootPart") then return analysis end
+    local pChar = LocalPlayer.Character
+    if not pChar or not pChar:FindFirstChild("HumanoidRootPart") then return analysis end
+
+    local pRoot = pChar.HumanoidRootPart
+    local tRoot = targetChar.HumanoidRootPart
+    local tHum = targetChar:FindFirstChildOfClass("Humanoid")
+    if not tHum or tHum.Health <= 0 then return analysis end
+
+    analysis.isValid = true
+    analysis.distance = (pRoot.Position - tRoot.Position).Magnitude
+    analysis.healthPercent = (tHum.Health / math.max(1, tHum.MaxHealth)) * 100
+
+    local toPlayer = (pRoot.Position - tRoot.Position).Unit
+    local dot = tRoot.CFrame.LookVector:Dot(toPlayer)
+    analysis.isFacingUs = (dot > -0.2) or (analysis.distance <= (CONFIG.MAX_MELEE_REACH or 6.5))
+
+    if targetChar:GetAttribute("Blocking") or targetChar:GetAttribute("Guard") or targetChar:GetAttribute("IsBlocking") then
+        analysis.isBlocking = true
+    end
+
+    local bh = ScarletState.TargetBlockHistory[targetChar]
+    if not bh then
+        bh = { lastState = analysis.isBlocking, changes = 0, lastChangeTime = tick() }
+        ScarletState.TargetBlockHistory[targetChar] = bh
+    end
+    if bh.lastState ~= analysis.isBlocking then
+        bh.changes = bh.changes + 1
+        bh.lastChangeTime = tick()
+        bh.lastState = analysis.isBlocking
+    end
+    if tick() - bh.lastChangeTime > 1.5 then bh.changes = 0 end
+    analysis.isBlockSpamming = (bh.changes >= 2) or analysis.isBlocking
+
+    pcall(function()
+        for _, track in ipairs(tHum:GetPlayingAnimationTracks()) do
+            if track.IsPlaying and track.WeightCurrent > 0.15 then
+                local combined = (tostring(track.Animation.AnimationId) .. " " .. tostring(track.Name)):lower()
+                if combined:find("block") or combined:find("guard") or combined:find("defend") then
+                    analysis.isBlocking = true
+                    analysis.isBlockSpamming = true
+                end
+                if combined:find("heavy") or combined:find("guardbreak") or combined:find("smash") then
+                    analysis.isGuardBreak = true
+                end
+                if not (combined:find("idle") or combined:find("walk") or combined:find("run")) then
+                    if combined:find("attack") or combined:find("punch") or combined:find("kick") or combined:find("m1") or combined:find("swing") then
+                        local progress = track.TimePosition / (track.Length > 0 and track.Length or 0.8)
+                        if progress >= 0.05 and progress <= 0.70 then
+                            analysis.isAttacking = true
+                            analysis.attackKey = tostring(track.Animation.AnimationId) .. "_" .. tostring(math.floor(track.TimePosition * 4))
+                        elseif progress > 0.70 then
+                            analysis.isWhiffRecovery = true
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    if (analysis.isBlocking or analysis.isBlockSpamming) and CONFIG.GAME_SENSE_AUTO_READ_DEFENSE then
+        analysis.optimalComboRoute = "ARMOR_SHATTER_LOOP"
+        ScarletState.EnemyState = "GUARDING"
+    elseif analysis.isWhiffRecovery and CONFIG.WHIFF_PUNISH_ENABLED then
+        analysis.optimalComboRoute = "WHIFF_PUNISH_OBLITERATE"
+        ScarletState.EnemyState = "WHIFFING"
+    elseif ScarletState.AdaptiveMode == "EXECUTE_RUSH" or analysis.healthPercent <= (CONFIG.ENEMY_EXECUTE_THRESHOLD or 25) then
+        analysis.optimalComboRoute = "EXECUTE_KILL_CONFIRM"
+        ScarletState.EnemyState = "CRITICAL"
+    elseif ScarletState.AdaptiveMode == "CLUTCH_SURVIVAL" then
+        analysis.optimalComboRoute = "CLUTCH_COUNTER_REVERSAL"
+        ScarletState.EnemyState = analysis.isAttacking and "ATTACKING" or "PRESSURE"
+    else
+        analysis.optimalComboRoute = "CRIMSON_EXECUTION"
+        ScarletState.EnemyState = analysis.isAttacking and "ATTACKING" or "NEUTRAL"
+    end
+
+    return analysis
+end
+
+function GameSense.ShouldBlock(analysis)
+    if not CONFIG.AUTO_BLOCK_ENABLED then return false end
+    if ScarletState.IsAttacking then return false end
+    if analysis.isGuardBreak and CONFIG.ANTI_GB_EVASION then return false end
+    if not analysis.isFacingUs then return false end
+    if analysis.distance > (CONFIG.MAX_MELEE_REACH or 6.5) then return false end
+    if analysis.isWhiffRecovery or analysis.isBlocking then return false end
+    if tick() - ScarletState.LastBlockFinishedTime < (CONFIG.GUARD_COOLDOWN or 0.25) then return false end
+    return analysis.isAttacking
+end
+
+-- ==================== EXECUÇÃO DO COMBO BRUTAL ZERO-GAP ====================
+local function ExecuteBrutalCombo(routeName, targetChar)
+    if not ScarletState.Enabled then return end
+    if ScarletState.IsAttacking or ScarletState.IsBlocking then return end
+    if tick() - ScarletState.LastComboTime < (CONFIG.COMBO_DELAY or 0.004) then return end
+
+    local route = BRUTAL_COMBO_ROUTES[routeName] or BRUTAL_COMBO_ROUTES.CRIMSON_EXECUTION
+    ScarletState.ActiveComboName = routeName
+    ScarletState.IsAttacking = true
+    ScarletState.LastComboTime = tick()
+
+    task.spawn(function()
+        local m1Speed = math.max(0.011, CONFIG.PERFECT_M1_SPEED or 0.018)
+        local kickSpeed = math.max(0.007, CONFIG.KICK_SPEED or 0.010)
+        if CONFIG.BRUTAL_ZERO_GAP_CHAIN then
+            m1Speed = math.max(0.010, m1Speed * 0.85)
+            kickSpeed = math.max(0.007, kickSpeed * 0.85)
+        end
+
+        for _, moveToken in ipairs(route) do
+            if targetChar and (not targetChar:FindFirstChild("Humanoid") or targetChar.Humanoid.Health <= 0) then break end
+            if ScarletState.PriorityMode or ScarletState.IsBlocking then break end
+
+            CombatActions.DispatchMove(moveToken, targetChar)
+            EnforcePlayerMobility()
+            local isPunch = (moveToken == "PUNCH" or moveToken == "BLINDSPOT_M1")
+            task.wait(isPunch and m1Speed or kickSpeed)
+        end
+
+        ScarletState.IsAttacking = false
+        EnforcePlayerMobility()
+    end)
+end
+
+-- ==================== LOOP PRINCIPAL HEARTBEAT ====================
+RunService.Heartbeat:Connect(function()
+    if not ScarletState.Enabled then return end
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 or not char:FindFirstChild("HumanoidRootPart") then
+        CombatActions.ReleaseBlock()
+        return
+    end
+
+    local hum = char.Humanoid
+    local myHpPercent = (hum.Health / math.max(1, hum.MaxHealth)) * 100
+
+    local closestEnemy = nil
+    local shortestDist = CONFIG.DETECTION_RANGE
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local eHum = p.Character:FindFirstChildOfClass("Humanoid")
+            if eHum and eHum.Health > 0 then
+                local d = (char.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
+                if d < shortestDist then
+                    shortestDist = d
+                    closestEnemy = p.Character
+                end
+            end
+        end
+    end
+
+    ScarletState.Target = closestEnemy
+    ScarletState.TargetDistance = math.floor(shortestDist * 10) / 10
+
+    if closestEnemy then
+        local eHum = closestEnemy:FindFirstChildOfClass("Humanoid")
+        local enemyHp = eHum and ((eHum.Health / math.max(1, eHum.MaxHealth)) * 100) or 100
+        ScarletState.TargetName = closestEnemy.Name
+        ScarletState.TargetHP = math.floor(enemyHp)
+
+        GameSense.UpdateAdaptiveMode(myHpPercent, enemyHp)
+        local analysis = GameSense.AnalyzeTarget(closestEnemy)
+
+        if GameSense.ShouldBlock(analysis) then
+            CombatActions.TriggerAutoBlock(analysis.attackKey)
+        else
+            if ScarletState.IsBlocking and (tick() - ScarletState.LastBlockTime > 0.05) then
+                CombatActions.ReleaseBlock()
+            end
+            if CONFIG.AUTO_COMBO_ENABLED and analysis.distance <= CONFIG.ATTACK_RANGE then
+                local chosenRoute = CONFIG.GAME_SENSE_ENABLED and analysis.optimalComboRoute or "CRIMSON_EXECUTION"
+                ExecuteBrutalCombo(chosenRoute, closestEnemy)
+            end
+        end
+    else
+        ScarletState.TargetName = "Procurando Alvo..."
+        ScarletState.TargetHP = 100
+        ScarletState.EnemyState = "NEUTRAL"
+        GameSense.UpdateAdaptiveMode(myHpPercent, 100)
+    end
+end)
+
+-- ==================== REDESIGN OBSIDIAN MOBILE GUI HUB V6.0 ====================
+local function CreateScarletObsidianHubV6()
+    pcall(function()
+        local guiParent = nil
+        pcall(function()
+            if gethui then
+                guiParent = gethui()
+            elseif syn and syn.protect_gui then
+                local folder = Instance.new("Folder")
+                syn.protect_gui(folder)
+                folder.Parent = CoreGui
+                guiParent = folder
+            elseif CoreGui then
+                local ok = pcall(function() local _ = CoreGui.Name end)
+                if ok then guiParent = CoreGui end
+            end
+        end)
+        if not guiParent then
+            guiParent = LocalPlayer:WaitForChild("PlayerGui", 10) or LocalPlayer:FindFirstChildOfClass("PlayerGui")
+        end
+        if not guiParent then return end
+
+        local old = guiParent:FindFirstChild("ScarletMobileHub_V60") or guiParent:FindFirstChild("ScarletMobileHub_V55")
+        if old then old:Destroy() end
+
+        local COLORS = {
+            Canvas = Color3.fromRGB(10, 10, 14),
+            Surface = Color3.fromRGB(17, 17, 24),
+            SurfaceAlt = Color3.fromRGB(24, 24, 34),
+            Border = Color3.fromRGB(45, 45, 62),
+            Accent = Color3.fromRGB(225, 29, 72),
+            AccentBright = Color3.fromRGB(251, 113, 133),
+            TextPrimary = Color3.fromRGB(244, 244, 245),
+            TextMuted = Color3.fromRGB(161, 161, 170),
+            Success = Color3.fromRGB(16, 185, 129)
+        }
+
+        local ScreenGui = Instance.new("ScreenGui")
+        ScreenGui.Name = "ScarletMobileHub_V60"
+        ScreenGui.ResetOnSpawn = false
+        ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        ScreenGui.IgnoreGuiInset = true
+        ScreenGui.DisplayOrder = 999
+        ScreenGui.Parent = guiParent
+
+        -- Botão Flutuante 🌙 Obsidian & Crimson
+        local FloatingBtn = Instance.new("TextButton")
+        FloatingBtn.Name = "ScarletOrb"
+        FloatingBtn.Size = UDim2.new(0, 54, 0, 54)
+        FloatingBtn.Position = UDim2.new(0, 18, 0.48, -27)
+        FloatingBtn.BackgroundColor3 = COLORS.Canvas
+        FloatingBtn.Text = "🌙"
+        FloatingBtn.TextSize = 24
+        FloatingBtn.TextColor3 = COLORS.AccentBright
+        FloatingBtn.AutoButtonColor = false
+        FloatingBtn.ZIndex = 100
+        FloatingBtn.Parent = ScreenGui
+
+        local OrbCorner = Instance.new("UICorner", FloatingBtn)
+        OrbCorner.CornerRadius = UDim.new(1, 0)
+        local OrbStroke = Instance.new("UIStroke", FloatingBtn)
+        OrbStroke.Color = COLORS.Accent
+        OrbStroke.Thickness = 2
+
+        -- Janela Principal V6.0 (Compacta, High-Contrast Obsidian)
+        local MainFrame = Instance.new("Frame")
+        MainFrame.Name = "ScarletMainV6"
+        MainFrame.Size = UDim2.new(0, 390, 0, 500)
+        MainFrame.Position = UDim2.new(0.5, -195, 0.5, -250)
+        MainFrame.BackgroundColor3 = COLORS.Canvas
+        MainFrame.BorderSizePixel = 0
+        MainFrame.ClipsDescendants = true
+        MainFrame.Active = true
+        MainFrame.Visible = true
+        MainFrame.ZIndex = 10
+        MainFrame.Parent = ScreenGui
+
+        local MainCorner = Instance.new("UICorner", MainFrame)
+        MainCorner.CornerRadius = UDim.new(0, 14)
+        local MainStroke = Instance.new("UIStroke", MainFrame)
+        MainStroke.Color = COLORS.Border
+        MainStroke.Thickness = 1.5
+
+        -- Header Bar
+        local Header = Instance.new("Frame")
+        Header.Size = UDim2.new(1, 0, 0, 46)
+        Header.BackgroundColor3 = COLORS.Surface
+        Header.BorderSizePixel = 0
+        Header.ZIndex = 11
+        Header.Parent = MainFrame
+
+        local HeaderAccent = Instance.new("Frame", Header)
+        HeaderAccent.Size = UDim2.new(1, 0, 0, 2)
+        HeaderAccent.Position = UDim2.new(0, 0, 1, -2)
+        HeaderAccent.BackgroundColor3 = COLORS.Accent
+        HeaderAccent.BorderSizePixel = 0
+        HeaderAccent.ZIndex = 12
+
+        local TitleLbl = Instance.new("TextLabel", Header)
+        TitleLbl.Size = UDim2.new(0, 250, 1, 0)
+        TitleLbl.Position = UDim2.new(0, 14, 0, 0)
+        TitleLbl.BackgroundTransparency = 1
+        TitleLbl.Text = "SCARLET V6.0  •  BRUTAL HUB"
+        TitleLbl.Font = Enum.Font.GothamBold
+        TitleLbl.TextSize = 13
+        TitleLbl.TextColor3 = COLORS.TextPrimary
+        TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+        TitleLbl.ZIndex = 12
+
+        local CloseBtn = Instance.new("TextButton", Header)
+        CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+        CloseBtn.Position = UDim2.new(1, -38, 0.5, -14)
+        CloseBtn.BackgroundColor3 = COLORS.SurfaceAlt
+        CloseBtn.Text = "✕"
+        CloseBtn.Font = Enum.Font.GothamBold
+        CloseBtn.TextSize = 12
+        CloseBtn.TextColor3 = COLORS.TextMuted
+        CloseBtn.ZIndex = 12
+        Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
+        CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
+
+        -- Live Target Telemetry Card
+        local TelemetryCard = Instance.new("Frame", MainFrame)
+        TelemetryCard.Size = UDim2.new(1, -20, 0, 56)
+        TelemetryCard.Position = UDim2.new(0, 10, 0, 54)
+        TelemetryCard.BackgroundColor3 = COLORS.Surface
+        TelemetryCard.ZIndex = 11
+        Instance.new("UICorner", TelemetryCard).CornerRadius = UDim.new(0, 10)
+        local TelStroke = Instance.new("UIStroke", TelemetryCard)
+        TelStroke.Color = COLORS.Border
+        TelStroke.Thickness = 1
+
+        local TargetLbl = Instance.new("TextLabel", TelemetryCard)
+        TargetLbl.Size = UDim2.new(0.65, 0, 0, 22)
+        TargetLbl.Position = UDim2.new(0, 10, 0, 6)
+        TargetLbl.BackgroundTransparency = 1
+        TargetLbl.Text = "ALVO: Procurando..."
+        TargetLbl.Font = Enum.Font.GothamBold
+        TargetLbl.TextSize = 11
+        TargetLbl.TextColor3 = COLORS.TextPrimary
+        TargetLbl.TextXAlignment = Enum.TextXAlignment.Left
+        TargetLbl.ZIndex = 12
+
+        local ModeLbl = Instance.new("TextLabel", TelemetryCard)
+        ModeLbl.Size = UDim2.new(0.35, -10, 0, 22)
+        ModeLbl.Position = UDim2.new(0.65, 0, 0, 6)
+        ModeLbl.BackgroundTransparency = 1
+        ModeLbl.Text = "DOMINANCE"
+        ModeLbl.Font = Enum.Font.GothamBold
+        ModeLbl.TextSize = 10
+        ModeLbl.TextColor3 = COLORS.AccentBright
+        ModeLbl.TextXAlignment = Enum.TextXAlignment.Right
+        ModeLbl.ZIndex = 12
+
+        local HpTrack = Instance.new("Frame", TelemetryCard)
+        HpTrack.Size = UDim2.new(1, -20, 0, 6)
+        HpTrack.Position = UDim2.new(0, 10, 0, 32)
+        HpTrack.BackgroundColor3 = COLORS.SurfaceAlt
+        HpTrack.ZIndex = 12
+        Instance.new("UICorner", HpTrack).CornerRadius = UDim.new(1, 0)
+
+        local HpFill = Instance.new("Frame", HpTrack)
+        HpFill.Size = UDim2.new(1, 0, 1, 0)
+        HpFill.BackgroundColor3 = COLORS.Accent
+        HpFill.ZIndex = 13
+        Instance.new("UICorner", HpFill).CornerRadius = UDim.new(1, 0)
+
+        local RouteReadout = Instance.new("TextLabel", TelemetryCard)
+        RouteReadout.Size = UDim2.new(1, -20, 0, 14)
+        RouteReadout.Position = UDim2.new(0, 10, 0, 40)
+        RouteReadout.BackgroundTransparency = 1
+        RouteReadout.Text = "ROTA: CRIMSON_EXECUTION • HITS: 0"
+        RouteReadout.Font = Enum.Font.Code
+        RouteReadout.TextSize = 10
+        RouteReadout.TextColor3 = COLORS.TextMuted
+        RouteReadout.TextXAlignment = Enum.TextXAlignment.Left
+        RouteReadout.ZIndex = 12
+
+        -- Preset Switcher Bar
+        local PresetBar = Instance.new("Frame", MainFrame)
+        PresetBar.Size = UDim2.new(1, -20, 0, 30)
+        PresetBar.Position = UDim2.new(0, 10, 0, 116)
+        PresetBar.BackgroundTransparency = 1
+        PresetBar.ZIndex = 11
+        local PresetLayout = Instance.new("UIListLayout", PresetBar)
+        PresetLayout.FillDirection = Enum.FillDirection.Horizontal
+        PresetLayout.Padding = UDim.new(0, 6)
+
+        local function ApplyPreset(presetId)
+            CONFIG.ACTIVE_PRESET = presetId
+            if presetId == "executioner" then
+                CONFIG.PERFECT_M1_SPEED = 0.016; CONFIG.KICK_SPEED = 0.009; CONFIG.KICK_BURST_COUNT = 12; CONFIG.HUMANIZE_BLOCK = false
+            elseif presetId == "shatter" then
+                CONFIG.ANTI_BLOCK_SPAM = true; CONFIG.SHIELD_PIERCER = true; CONFIG.BLINDSPOT_360_MATRIX = true; CONFIG.KICK_BURST_COUNT = 14
+            elseif presetId == "clutch" then
+                CONFIG.HP_LOW_THRESHOLD = 40; CONFIG.CLUTCH_FLASH_PARRY_SPEED = 0.020; CONFIG.GUARD_COOLDOWN = 0.18
+            elseif presetId == "legit" then
+                CONFIG.PERFECT_M1_SPEED = 0.032; CONFIG.KICK_SPEED = 0.018; CONFIG.HUMANIZE_BLOCK = true
+            end
+        end
+
+        for _, pInfo in ipairs({
+            { id = "executioner", label = "💀 Exec" },
+            { id = "shatter", label = "💥 Shatter" },
+            { id = "clutch", label = "⚡ Clutch" },
+            { id = "legit", label = "🛡️ Legit" }
+        }) do
+            local pBtn = Instance.new("TextButton", PresetBar)
+            pBtn.Size = UDim2.new(0.25, -4.5, 1, 0)
+            pBtn.BackgroundColor3 = (CONFIG.ACTIVE_PRESET == pInfo.id) and COLORS.Accent or COLORS.Surface
+            pBtn.Text = pInfo.label
+            pBtn.Font = Enum.Font.GothamBold
+            pBtn.TextSize = 10
+            pBtn.TextColor3 = COLORS.TextPrimary
+            pBtn.ZIndex = 12
+            Instance.new("UICorner", pBtn).CornerRadius = UDim.new(0, 7)
+            pBtn.MouseButton1Click:Connect(function()
+                ApplyPreset(pInfo.id)
+                for _, child in ipairs(PresetBar:GetChildren()) do
+                    if child:IsA("TextButton") then
+                        child.BackgroundColor3 = COLORS.Surface
+                    end
+                end
+                pBtn.BackgroundColor3 = COLORS.Accent
+            end)
+        end
+
+        -- Tabs Navigation Bar
+        local TabBar = Instance.new("ScrollingFrame", MainFrame)
+        TabBar.Size = UDim2.new(1, -20, 0, 34)
+        TabBar.Position = UDim2.new(0, 10, 0, 152)
+        TabBar.BackgroundTransparency = 1
+        TabBar.ScrollBarThickness = 0
+        TabBar.CanvasSize = UDim2.new(0, 440, 0, 0)
+        TabBar.ZIndex = 11
+        local TabLayout = Instance.new("UIListLayout", TabBar)
+        TabLayout.FillDirection = Enum.FillDirection.Horizontal
+        TabLayout.Padding = UDim.new(0, 6)
+
+        local TabContainer = Instance.new("Frame", MainFrame)
+        TabContainer.Size = UDim2.new(1, -20, 1, -200)
+        TabContainer.Position = UDim2.new(0, 10, 0, 192)
+        TabContainer.BackgroundTransparency = 1
+        TabContainer.ZIndex = 11
+
+        local TabFrames = {}
+        local CurrentTab = "BrutalCombos"
+
+        local function CreateTab(name, title)
+            local sf = Instance.new("ScrollingFrame", TabContainer)
+            sf.Name = name
+            sf.Size = UDim2.new(1, 0, 1, 0)
+            sf.BackgroundTransparency = 1
+            sf.ScrollBarThickness = 2
+            sf.ScrollBarImageColor3 = COLORS.Accent
+            sf.AutomaticCanvasSize = Enum.AutomaticSize.Y
+            sf.CanvasSize = UDim2.new(0, 0, 0, 0)
+            sf.Visible = (name == CurrentTab)
+            sf.ZIndex = 12
+            local list = Instance.new("UIListLayout", sf)
+            list.Padding = UDim.new(0, 8)
+            TabFrames[name] = sf
+
+            local btn = Instance.new("TextButton", TabBar)
+            btn.Name = name .. "_Btn"
+            btn.Size = UDim2.new(0, 102, 1, -2)
+            btn.BackgroundColor3 = (name == CurrentTab) and COLORS.Accent or COLORS.Surface
+            btn.Text = title
+            btn.Font = Enum.Font.GothamBold
+            btn.TextSize = 11
+            btn.TextColor3 = COLORS.TextPrimary
+            btn.ZIndex = 12
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+            btn.MouseButton1Click:Connect(function()
+                CurrentTab = name
+                for tName, frame in pairs(TabFrames) do frame.Visible = (tName == name) end
+                for _, child in ipairs(TabBar:GetChildren()) do
+                    if child:IsA("TextButton") then
+                        TweenService:Create(child, TweenInfo.new(0.15), {
+                            BackgroundColor3 = (child == btn) and COLORS.Accent or COLORS.Surface
+                        }):Play()
+                    end
+                end
+            end)
+            return sf
+        end
+
+        -- Animated Switch Toggle V6
+        local function AddToggle(parent, title, desc, initial, callback)
+            local card = Instance.new("Frame", parent)
+            card.Size = UDim2.new(1, -4, 0, 50)
+            card.BackgroundColor3 = COLORS.Surface
+            card.ZIndex = 13
+            Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
+            local st = Instance.new("UIStroke", card)
+            st.Color = COLORS.Border
+            st.Thickness = 1
+
+            local tLbl = Instance.new("TextLabel", card)
+            tLbl.Size = UDim2.new(1, -66, 0, 18)
+            tLbl.Position = UDim2.new(0, 12, 0, 7)
+            tLbl.BackgroundTransparency = 1
+            tLbl.Text = title
+            tLbl.Font = Enum.Font.GothamBold
+            tLbl.TextSize = 11
+            tLbl.TextColor3 = COLORS.TextPrimary
+            tLbl.TextXAlignment = Enum.TextXAlignment.Left
+            tLbl.ZIndex = 14
+
+            local dLbl = Instance.new("TextLabel", card)
+            dLbl.Size = UDim2.new(1, -66, 0, 16)
+            dLbl.Position = UDim2.new(0, 12, 0, 26)
+            dLbl.BackgroundTransparency = 1
+            dLbl.Text = desc
+            dLbl.Font = Enum.Font.Gotham
+            dLbl.TextSize = 10
+            dLbl.TextColor3 = COLORS.TextMuted
+            dLbl.TextXAlignment = Enum.TextXAlignment.Left
+            dLbl.ZIndex = 14
+
+            local track = Instance.new("TextButton", card)
+            track.Size = UDim2.new(0, 44, 0, 22)
+            track.Position = UDim2.new(1, -54, 0.5, -11)
+            track.BackgroundColor3 = initial and COLORS.Accent or COLORS.SurfaceAlt
+            track.Text = ""
+            track.AutoButtonColor = false
+            track.ZIndex = 14
+            Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+            local knob = Instance.new("Frame", track)
+            knob.Size = UDim2.new(0, 16, 0, 16)
+            knob.Position = initial and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+            knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            knob.ZIndex = 15
+            Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+            local state = initial
+            track.MouseButton1Click:Connect(function()
+                state = not state
+                TweenService:Create(track, TweenInfo.new(0.16), {
+                    BackgroundColor3 = state and COLORS.Accent or COLORS.SurfaceAlt
+                }):Play()
+                TweenService:Create(knob, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+                }):Play()
+                callback(state)
+            end)
+        end
+
+        local function AddSlider(parent, title, minV, maxV, initV, step, unit, callback)
+            local card = Instance.new("Frame", parent)
+            card.Size = UDim2.new(1, -4, 0, 56)
+            card.BackgroundColor3 = COLORS.Surface
+            card.ZIndex = 13
+            Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
+            local st = Instance.new("UIStroke", card)
+            st.Color = COLORS.Border
+            st.Thickness = 1
+
+            local tLbl = Instance.new("TextLabel", card)
+            tLbl.Size = UDim2.new(1, -80, 0, 18)
+            tLbl.Position = UDim2.new(0, 12, 0, 6)
+            tLbl.BackgroundTransparency = 1
+            tLbl.Text = title
+            tLbl.Font = Enum.Font.GothamBold
+            tLbl.TextSize = 11
+            tLbl.TextColor3 = COLORS.TextPrimary
+            tLbl.TextXAlignment = Enum.TextXAlignment.Left
+            tLbl.ZIndex = 14
+
+            local vLbl = Instance.new("TextLabel", card)
+            vLbl.Size = UDim2.new(0, 68, 0, 18)
+            vLbl.Position = UDim2.new(1, -78, 0, 6)
+            vLbl.BackgroundTransparency = 1
+            vLbl.Text = tostring(initV) .. unit
+            vLbl.Font = Enum.Font.Code
+            vLbl.TextSize = 11
+            vLbl.TextColor3 = COLORS.AccentBright
+            vLbl.TextXAlignment = Enum.TextXAlignment.Right
+            vLbl.ZIndex = 14
+
+            local track = Instance.new("Frame", card)
+            track.Size = UDim2.new(1, -24, 0, 8)
+            track.Position = UDim2.new(0, 12, 0, 35)
+            track.BackgroundColor3 = COLORS.SurfaceAlt
+            track.ZIndex = 14
+            Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+            local pct = math.clamp((initV - minV) / (maxV - minV), 0, 1)
+            local fill = Instance.new("Frame", track)
+            fill.Size = UDim2.new(pct, 0, 1, 0)
+            fill.BackgroundColor3 = COLORS.Accent
+            fill.ZIndex = 15
+            Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+            local hit = Instance.new("TextButton", track)
+            hit.Size = UDim2.new(1, 0, 1, 14)
+            hit.Position = UDim2.new(0, 0, 0, -7)
+            hit.BackgroundTransparency = 1
+            hit.Text = ""
+            hit.ZIndex = 16
+
+            local dragging = false
+            hit.MouseButton1Down:Connect(function() dragging = true end)
+            UserInputService.InputEnded:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+                    dragging = false
+                end
+            end)
+            UserInputService.InputChanged:Connect(function(inp)
+                if dragging and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+                    local rel = math.clamp((inp.Position.X - track.AbsolutePosition.X) / math.max(1, track.AbsoluteSize.X), 0, 1)
+                    local val = minV + rel * (maxV - minV)
+                    if step and step > 0 then val = math.floor((val / step) + 0.5) * step end
+                    fill.Size = UDim2.new(rel, 0, 1, 0)
+                    vLbl.Text = string.format("%.3f", val):gsub("%.?0+$", "") .. unit
+                    callback(val)
+                end
+            end)
+        end
+
+        local function AddButton(parent, label, onClick)
+            local btn = Instance.new("TextButton", parent)
+            btn.Size = UDim2.new(1, -4, 0, 38)
+            btn.BackgroundColor3 = COLORS.SurfaceAlt
+            btn.Text = label
+            btn.Font = Enum.Font.GothamBold
+            btn.TextSize = 11
+            btn.TextColor3 = COLORS.TextPrimary
+            btn.ZIndex = 13
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 9)
+            local st = Instance.new("UIStroke", btn)
+            st.Color = COLORS.Accent
+            st.Transparency = 0.45
+            st.Thickness = 1
+            btn.MouseButton1Click:Connect(onClick)
+        end
+
+        -- ABA 1: BRUTAL COMBOS V6
+        local tabCombos = CreateTab("BrutalCombos", "💀 Combos")
+        AddToggle(tabCombos, "Auto-Combo Brutal Ativo", "Dispara rotas letais frame-cancel automaticamente", CONFIG.AUTO_COMBO_ENABLED, function(v) CONFIG.AUTO_COMBO_ENABLED = v end)
+        AddToggle(tabCombos, "Zero-Gap Frame Cancel", "Reduz 15% do intervalo entre hits sem cooldown morto", CONFIG.BRUTAL_ZERO_GAP_CHAIN, function(v) CONFIG.BRUTAL_ZERO_GAP_CHAIN = v end)
+        AddToggle(tabCombos, "Blindspot 360° Matrix", "Injeta hits nas costas 180° e flancos ±90°", CONFIG.BLINDSPOT_360_MATRIX, function(v) CONFIG.BLINDSPOT_360_MATRIX = v end)
+        AddToggle(tabCombos, "Armor Shatter Anti-Block", "Quebra spam de block com Guard-Crush imediato", CONFIG.ANTI_BLOCK_SPAM, function(v) CONFIG.ANTI_BLOCK_SPAM = v; CONFIG.SHIELD_PIERCER = v end)
+        AddButton(tabCombos, "💀 Executar Crimson Execution", function() ExecuteBrutalCombo("CRIMSON_EXECUTION", ScarletState.Target) end)
+        AddButton(tabCombos, "💥 Executar Armor Shatter Loop", function() ExecuteBrutalCombo("ARMOR_SHATTER_LOOP", ScarletState.Target) end)
+        AddButton(tabCombos, "⚡ Executar Rota Customizada", function() ExecuteBrutalCombo("CUSTOM_BRUTAL_ROUTE", ScarletState.Target) end)
+
+        -- ABA 2: M1 & HYPER KICKS
+        local tabM1 = CreateTab("M1Kicks", "⚡ M1 & Chutes")
+        AddSlider(tabM1, "Velocidade Perfect M1", 0.011, 0.060, CONFIG.PERFECT_M1_SPEED, 0.002, "s", function(v) CONFIG.PERFECT_M1_SPEED = v end)
+        AddSlider(tabM1, "Velocidade Chutes (E/Q)", 0.007, 0.035, CONFIG.KICK_SPEED, 0.001, "s", function(v) CONFIG.KICK_SPEED = v end)
+        AddSlider(tabM1, "Multiplicador Frame Cancel", 2.0, 6.0, CONFIG.M1_CANCEL_MULT, 0.2, "x", function(v) CONFIG.M1_CANCEL_MULT = v; CONFIG.KICK_CANCEL_MULT = v end)
+        AddSlider(tabM1, "Rajada Hyper Flurry", 4, 18, CONFIG.KICK_BURST_COUNT, 1, " hits", function(v) CONFIG.KICK_BURST_COUNT = math.floor(v) end)
+        AddButton(tabM1, "🦶 Disparar Hyper Flurry Agora", function() CombatActions.PerformRapidKickFlurry(ScarletState.Target, CONFIG.KICK_BURST_COUNT) end)
+
+        -- ABA 3: DEFESA & GAME SENSE
+        local tabDefense = CreateTab("DefenseAI", "🛡️ Defesa AI")
+        AddToggle(tabDefense, "Auto-Block Consciente", "Bloqueia apenas golpes reais dentro do alcance melee", CONFIG.AUTO_BLOCK_ENABLED, function(v) CONFIG.AUTO_BLOCK_ENABLED = v end)
+        AddToggle(tabDefense, "Game Sense AI Tático", "Escolhe automaticamente entre Shatter, Whiff e Execute", CONFIG.GAME_SENSE_ENABLED, function(v) CONFIG.GAME_SENSE_ENABLED = v end)
+        AddToggle(tabDefense, "Smart HP Adaptive", "Adapta agressividade por HP (Dominance / Clutch / Execute)", CONFIG.SMART_HP_ADAPTIVE, function(v) CONFIG.SMART_HP_ADAPTIVE = v end)
+        AddToggle(tabDefense, "Anti-Guard Break Evasion", "Evita defender ataques pesados que quebram guarda", CONFIG.ANTI_GB_EVASION, function(v) CONFIG.ANTI_GB_EVASION = v end)
+        AddToggle(tabDefense, "Humanizer Disfarce", "Adiciona micro-delay humano natural no block", CONFIG.HUMANIZE_BLOCK, function(v) CONFIG.HUMANIZE_BLOCK = v end)
+        AddSlider(tabDefense, "Cooldown de Guarda", 0.12, 0.45, CONFIG.GUARD_COOLDOWN, 0.02, "s", function(v) CONFIG.GUARD_COOLDOWN = v end)
+
+        -- ABA 4: CONFIG & REMOTES
+        local tabCfg = CreateTab("Settings", "⚙️ Config")
+        AddSlider(tabCfg, "Alcance Auto-Combo", 6, 20, CONFIG.ATTACK_RANGE, 0.5, " st", function(v) CONFIG.ATTACK_RANGE = v end)
+        AddToggle(tabCfg, "Travar Botões na Tela", "Mantém Block, Brutal, Shatter, Flurry e Orbe 100% fixos", CONFIG.LOCK_HUD_BUTTONS, function(v) CONFIG.LOCK_HUD_BUTTONS = v end)
+        AddToggle(tabCfg, "Anti-Kick Packet Cap", "Limita pacotes/seg para segurança máxima", CONFIG.ANTI_KICK_SAFETY, function(v) CONFIG.ANTI_KICK_SAFETY = v end)
+        AddButton(tabCfg, "🔄 Re-escanear Combat Remotes", function() ScanForCombatRemotes() end)
+        AddButton(tabCfg, "🏃 Destravar Mobilidade", function() EnforcePlayerMobility() end)
+        AddButton(tabCfg, "❌ Destruir Scarlet Hub V6", function() ScreenGui:Destroy() end)
+
+        -- ==================== QUICK-ACTION CLUSTER V6 (4 BOTÕES TÁTEIS) ====================
+        local function CreateQuickOrb(name, pos, text, strokeColor, sizePx)
+            local b = Instance.new("TextButton", ScreenGui)
+            b.Name = name
+            b.Size = UDim2.new(0, sizePx, 0, sizePx)
+            b.Position = pos
+            b.BackgroundColor3 = COLORS.Canvas
+            b.Text = text
+            b.Font = Enum.Font.GothamBold
+            b.TextSize = 10
+            b.TextColor3 = COLORS.TextPrimary
+            b.AutoButtonColor = false
+            b.ZIndex = 120
+            Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
+            local s = Instance.new("UIStroke", b)
+            s.Color = strokeColor
+            s.Thickness = 2
+            return b, s
+        end
+
+        local QuickBlockBtn, QuickBlockStroke = CreateQuickOrb("QuickBlockV6", UDim2.new(1, -82, 0.72, 0), "🛡️\nBLOCK", Color3.fromRGB(56, 189, 248), 60)
+        local QuickBrutalBtn = CreateQuickOrb("QuickBrutalV6", UDim2.new(1, -82, 0.72, -70), "💀\nBRUTAL", COLORS.Accent, 60)
+        local QuickShatterBtn = CreateQuickOrb("QuickShatterV6", UDim2.new(1, -150, 0.72, -35), "💥\nSHATTER", Color3.fromRGB(245, 158, 11), 54)
+        local QuickFlurryBtn = CreateQuickOrb("QuickFlurryV6", UDim2.new(1, -82, 0.72, -140), "🦶\nFLURRY", COLORS.AccentBright, 54)
+
+        local holdingBlock = false
+        local activeBlockInput = nil
+        QuickBlockBtn.InputBegan:Connect(function(inp)
+            if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+                holdingBlock = true
+                activeBlockInput = inp
+                QuickBlockBtn.BackgroundColor3 = COLORS.Success
+                QuickBlockStroke.Thickness = 3
+                CombatActions.TriggerManualBlock(true)
+            end
+        end)
+        QuickBlockBtn.InputEnded:Connect(function(inp)
+            if holdingBlock and (inp == activeBlockInput or inp.UserInputType == Enum.UserInputType.MouseButton1) then
+                holdingBlock = false
+                activeBlockInput = nil
+                QuickBlockBtn.BackgroundColor3 = COLORS.Canvas
+                QuickBlockStroke.Thickness = 2
+                CombatActions.TriggerManualBlock(false)
+            end
+        end)
+
+        QuickBrutalBtn.MouseButton1Click:Connect(function()
+            ExecuteBrutalCombo("CRIMSON_EXECUTION", ScarletState.Target)
+        end)
+        QuickShatterBtn.MouseButton1Click:Connect(function()
+            ExecuteBrutalCombo("ARMOR_SHATTER_LOOP", ScarletState.Target)
+        end)
+        QuickFlurryBtn.MouseButton1Click:Connect(function()
+            CombatActions.PerformRapidKickFlurry(ScarletState.Target, CONFIG.KICK_BURST_COUNT)
+        end)
+
+        -- ==================== DRAG SEGURO ISOLADO POR DEDO & TRAVA DE BOTÕES ====================
+        local function EnableDrag(frame, handle, onTap, isHudButton)
+            local dragging, moved = false, false
+            local dragStart, startPos, activeInput
+            handle.InputBegan:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+                    local locked = isHudButton and CONFIG.LOCK_HUD_BUTTONS
+                    dragging = not locked
+                    moved = false
+                    activeInput = inp
+                    dragStart = inp.Position
+                    startPos = frame.Position
+                    inp.Changed:Connect(function()
+                        if inp.UserInputState == Enum.UserInputState.End then
+                            dragging = false
+                            activeInput = nil
+                            if not moved and onTap then onTap() end
+                        end
+                    end)
+                end
+            end)
+            UserInputService.InputChanged:Connect(function(inp)
+                if not dragging then return end
+                if isHudButton and CONFIG.LOCK_HUD_BUTTONS then return end
+                local isSameTouch = (inp.UserInputType == Enum.UserInputType.Touch and inp == activeInput)
+                local isMouseMove = (inp.UserInputType == Enum.UserInputType.MouseMovement and activeInput and activeInput.UserInputType == Enum.UserInputType.MouseButton1)
+                if isSameTouch or isMouseMove then
+                    local delta = inp.Position - dragStart
+                    if delta.Magnitude > 10 then moved = true end
+                    if moved then
+                        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                    end
+                end
+            end)
+        end
+
+        EnableDrag(MainFrame, Header, nil, false)
+        EnableDrag(FloatingBtn, FloatingBtn, function() MainFrame.Visible = not MainFrame.Visible end, true)
+        EnableDrag(QuickBlockBtn, QuickBlockBtn, nil, true)
+        EnableDrag(QuickBrutalBtn, QuickBrutalBtn, nil, true)
+        EnableDrag(QuickShatterBtn, QuickShatterBtn, nil, true)
+        EnableDrag(QuickFlurryBtn, QuickFlurryBtn, nil, true)
+
+        UserInputService.InputBegan:Connect(function(inp, gp)
+            if gp then return end
+            if inp.KeyCode == Enum.KeyCode.V then
+                MainFrame.Visible = not MainFrame.Visible
+            elseif inp.KeyCode == Enum.KeyCode.F then
+                QuickBlockBtn.BackgroundColor3 = COLORS.Success
+                CombatActions.TriggerManualBlock(true)
+            end
+        end)
+        UserInputService.InputEnded:Connect(function(inp)
+            if inp.KeyCode == Enum.KeyCode.F then
+                QuickBlockBtn.BackgroundColor3 = COLORS.Canvas
+                CombatActions.TriggerManualBlock(false)
+            end
+        end)
+
+        -- Live HUD Telemetry Updater
+        task.spawn(function()
+            while ScreenGui and ScreenGui.Parent do
+                TargetLbl.Text = string.format("ALVO: %s (%dst)", tostring(ScarletState.TargetName), math.floor(ScarletState.TargetDistance))
+                ModeLbl.Text = ScarletState.AdaptiveMode
+                HpFill.Size = UDim2.new(math.clamp(ScarletState.TargetHP / 100, 0, 1), 0, 1, 0)
+                RouteReadout.Text = string.format("ROTA: %s • %s • HITS: %d", ScarletState.ActiveComboName, ScarletState.EnemyState, ScarletState.TotalHitsLanded)
+                task.wait(0.15)
+            end
+        end)
+    end)
+end
+
+task.spawn(function()
+    task.wait(0.2)
+    CreateScarletObsidianHubV6()
+end)
+
+return ScarletState
